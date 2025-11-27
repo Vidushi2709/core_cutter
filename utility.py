@@ -1,12 +1,24 @@
+"""Utility types and analytics for phase balancing.
+
+Conventions:
+- `power_kw` and `total_power_kw` are signed:
+    - Negative values mean generation/export (house exporting to grid).
+    - Positive values mean consumption/import (house drawing from grid).
+
+Main responsibilities:
+- `HouseRegistry` stores per-house state and readings.
+- `PhaseRegistry` aggregates per-phase stats and detects mode/imbalances.
+"""
+
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, Dict, List
 from configerations import (
-    PHASES,
-    READING_EXPIRY_SECONDS,
-    EXPORT_MODE_THRESHOLD,
-    OVERVOLTAGE_THRESHOLD,
-    UNDERVOLTAGE_THRESHOLD,
+        PHASES,
+        READING_EXPIRY_SECONDS,
+        EXPORT_MODE_THRESHOLD,
+        OVERVOLTAGE_THRESHOLD,
+        UNDERVOLTAGE_THRESHOLD,
 )
 
 
@@ -61,9 +73,9 @@ class HouseRegistry:
             last_reading=None,
         )
     
-    """ power_kw: +ve -> exporting solar
-     -ve -> consuming power
-    """
+    # Note: `power_kw` sign convention used across the codebase:
+    #  - positive => consumption/import
+    #  - negative => generation/export
     def update_reading(self, house_id: str, voltage: float, power_kw: float):
         if house_id not in self.houses:
             raise ValueError("House not registered")
@@ -102,6 +114,8 @@ class PhaseRegistry:
                 continue
 
             phase = house.phase
+            # accumulate signed power: negative reduces phase total (export),
+            # positive increases it (consumption).
             stats[phase]["power"] += r.power_kw
             stats[phase]["voltages"].append(r.voltage)
             stats[phase]["count"] += 1
@@ -121,15 +135,19 @@ class PhaseRegistry:
         ]
 
     def get_imbalance(self, phase_stat: List[PhaseStats]) -> float:
+        # Imbalance is defined as difference between the most-consuming
+        # phase and the most-generating phase.
         powers = [ps.total_power_kw for ps in phase_stat]
         return max(powers) - min(powers)
 
     def detect_mode(self, phase_stat: List[PhaseStats]) -> str:
-        total_export = sum(ps.total_power_kw for ps in phase_stat if ps.total_power_kw > 0)
+        # Exports are negative totals. Compute total export power (kW)
+        # by summing the absolute value of negative phase totals.
+        total_export = sum(-ps.total_power_kw for ps in phase_stat if ps.total_power_kw < 0)
+        # If exported power exceeds threshold, consider it daytime (solar exporting).
         if total_export > EXPORT_MODE_THRESHOLD:
             return "DAY"
-        else:
-            return "NIGHT"
+        return "NIGHT"
     
     def detect_voltage_issues(self, phase_stat: List[PhaseStats]) -> Dict[str, List[str]]:
         issues = {"OVER_VOLTAGE": [], "UNDER_VOLTAGE": []}

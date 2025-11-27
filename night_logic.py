@@ -38,8 +38,8 @@ class NightLogic:
             if (now-r.timestamp).total_seconds() > READING_EXPIRY_SECONDS:
                 continue
 
-            # At night we care about heavy consumers (negative power_kw).
-            if r.power_kw < -0.1:
+            # At night we care about heavy consumers (positive power_kw).
+            if r.power_kw > 0.1:
                 candidates.append({
                     "house_id": house.house_id,
                     "current_phase": house.phase,
@@ -50,10 +50,13 @@ class NightLogic:
         # sort by magnitude of consumption (largest loads first)
         candidates.sort(key=lambda x: abs(x["power_kw"]), reverse=True)
         return candidates
+    
     def find_best_switch(self)-> Optional[RecommendedSwitch]:
-        '''     
-        Find the best house to switch to reduce the imbalance
-        '''
+        """Find the best house to switch at night.
+
+        Same algorithm as morning, but candidates are consumers. When `verbose`
+        is True, print a short trace of the simulated moves and chosen best move.
+        """
         phase_stats = self.analyzer.get_phase_stats()
         current_imbalance_kw = self.analyzer.get_imbalance(phase_stats)
 

@@ -27,9 +27,9 @@ class PhaseBalancingController:
         
         # Choose appropriate balancer
         if mode == "DAY":
-            recommendation = self.morning_balancer.find_best_switch()
+            recommendation = self.morning_balancer.find_best_switch(verbose=True)
         else:
-            recommendation = self.night_balancer.find_best_switch()
+            recommendation = self.night_balancer.find_best_switch(verbose=True)
         
         # Build status report
         status = {
