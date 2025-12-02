@@ -1,130 +1,168 @@
-from datetime import datetime
-from typing import Dict
+from fastapi import FastAPI, HTTPException, BackgroundTasks
+from pydantic import BaseModel
+import uvicorn
+import asyncio
+from main import PhaseBalancingController
+from utility import DataStorage, HouseRegistry, PhaseRegistry
+from configerations import AUTO_BALANCE_INTERVAL
 
-from utility import HouseRegistry, PhaseRegistry
-from morning_logic import MorningLogic
-from night_logic import NightLogic
+# Pydantic models 
+class TelemetryData(BaseModel):
+    house_id: str
+    voltage: float
+    power_kw: float
 
 
-class PhaseBalancingController:
-    """Main controller orchestrating all logic"""
+class HouseRegistration(BaseModel):
+    house_id: str
+    initial_phase: str
 
-    def __init__(self):
-        self.registry = HouseRegistry()
-        self.analyzer = PhaseRegistry(self.registry)
-        self.morning_balancer = MorningLogic(self.registry, self.analyzer)
-        self.night_balancer = NightLogic(self.registry, self.analyzer)
-    
-    def run_cycle(self) -> Dict:
-        """
-        Run one balancing cycle
-        Returns status and recommendation
-        """
-        phase_stats = self.analyzer.get_phase_stats()
-        mode = self.analyzer.detect_mode(phase_stats)
-        imbalance = self.analyzer.get_imbalance(phase_stats)
-        voltage_issues = self.analyzer.detect_voltage_issues(phase_stats)
-        
-        # Choose appropriate balancer
-        if mode == "DAY":
-            recommendation = self.morning_balancer.find_best_switch(verbose=True)
-        else:
-            recommendation = self.night_balancer.find_best_switch(verbose=True)
-        
-        # Build status report
-        status = {
-            "timestamp": datetime.now().isoformat(),
-            "mode": mode,
-            "imbalance_kw": round(imbalance, 2),
-            "phase_stats": [
-                {
-                    "phase": ps.phase,
-                    "power_kw": round(ps.total_power_kw, 2),
-                    "voltage": round(ps.avg_voltage, 1) if ps.avg_voltage else None,
-                    "house_count": ps.house_count
-                }
-                for ps in phase_stats
-            ],
-            "voltage_issues": voltage_issues,
-            "recommendation": None
-        }
-        
-        if recommendation:
-            status["recommendation"] = {
-                "house_id": recommendation.house_id,
-                "from_phase": recommendation.from_phase,
-                "to_phase": recommendation.to_phase,
-                "improvement_kw": round(recommendation.improved_kw, 2),
-                "new_imbalance_kw": round(recommendation.new_imbalance_kw, 2),
-                "reason": recommendation.reason,
+
+class ManualSwitchRequest(BaseModel):
+    house_id: str
+    to_phase: str
+
+app = FastAPI(title="Phase Balancing Controller", version="1.0")
+controller = PhaseBalancingController(DataStorage())  
+auto_balance_running = False
+
+
+async def _auto_balance_loop(interval: int):
+    global auto_balance_running
+    while auto_balance_running:
+        try:
+            controller.run_cycle()
+        except Exception:
+            pass
+        await asyncio.sleep(interval)
+
+@app.post("/house/register_house")
+def register_house(house: HouseRegistration):
+    # register a new house
+    try:
+        controller.registry.add_house(house.house_id, house.initial_phase)
+        return {"status": "success", "message": f"House {house.house_id} registered on phase {house.initial_phase}"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/house/telemetry")
+def get_telemetry(data: TelemetryData):
+    try:
+        controller.registry.update_reading(data.house_id, data.voltage, data.power_kw)
+        return {"status": "success", "message": f"Telemetry updated for house {data.house_id}"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/status")
+def get_status():
+    phase_stats = controller.analyzer.get_phase_stats()
+    mode = controller.analyzer.detect_mode(phase_stats) 
+    imbalance = controller.analyzer.get_imbalance(phase_stats)
+    voltage_issues = controller.analyzer.detect_voltage_issues(phase_stats)
+
+    return{
+        "mode": mode,
+        "imbalance_kw": round(imbalance, 2),
+        "phase_stats": [
+            {
+                "phase": ps.phase,
+                "power_kw": round(ps.total_power_kw, 2),
+                "voltage": round(ps.avg_voltage, 1) if ps.avg_voltage else None,
+                "house_count": ps.house_count
             }
+            for ps in phase_stats
+        ],
+        "voltage_issues": voltage_issues,
+        "houses": {
+            hid:{
+                "phase": h.phase,
+                "last_changed": h.last_changed.isoformat(),
+                "last_reading": {
+                    "voltage": h.last_reading.voltage,
+                    "power_kw": h.last_reading.power_kw,
+                    "timestamp": h.last_reading.timestamp.isoformat(),
+                } if h.last_reading else None 
+            }
+            for hid, h in controller.registry.houses.items()
+        }
+    }
 
-            # Apply the switch
-            self.registry.apply_switch(recommendation.house_id, recommendation.to_phase)
-        
+@app.post("/balance/run")
+def run_balance_cycle():
+    try:
+        status = controller.run_cycle()
         return status
+    except Exception as e:
+        import traceback
+        return {"error": str(e), "trace": traceback.format_exc()}
 
+@app.post("/balance/auto/start")
+async def start_auto_balance(background_tasks: BackgroundTasks):
+    """Start automatic balancing"""
+    global auto_balance_running
+    if auto_balance_running:
+        return {"status": "info", "message": "Auto-balance already running"}
+
+    auto_balance_running = True
+    # start background loop (non-blocking)
+    asyncio.create_task(_auto_balance_loop(AUTO_BALANCE_INTERVAL))
+    return {"status": "success", "message": f"Auto-balance started (interval: {AUTO_BALANCE_INTERVAL}s)"}
+
+
+@app.post("/balance/auto/stop")
+def stop_auto_balance():
+    """Stop automatic balancing"""
+    global auto_balance_running
+    auto_balance_running = False
+    return {"status": "success", "message": "Auto-balance stopped"}
+
+@app.post("/switch/manual")
+def manual_switch(req: ManualSwitchRequest):
+    """Manually switch a house to a different phase"""
+    try:
+        controller.registry.apply_switch(req.house_id, req.to_phase)
+        return {"status": "success", "message": f"House {req.house_id} switched to {req.to_phase}"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/history/switches")
+def get_switch_history(limit: int = 50):
+    """Get recent switch history"""
+    history = controller.storage.get_switch_history(limit)
+    return {"switches": history}
+
+@app.get("/history/telemetry")
+def get_telemetry_history(house_id: str, hours: int = 24):
+    telemetry = controller.storage.get_recent_telemetry(house_id, hours)
+    return {
+        "house_id": house_id,
+        "telemetry": [t.to_dict() for t in telemetry],
+        "count": len(telemetry)
+    }
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok", "message": "Phase Balancing Controller is running"}
+
+@app.get("/")
+def root():
+    return {
+        "name": "Phase Balancing Controller",
+        "version": "1.0",
+        "endpoints": [
+            "/house/register_house",
+            "/house/telemetry",
+            "/status",
+            "/balance/run",
+            "/balance/auto/start",
+            "/balance/auto/stop",
+            "/switch/manual",
+            "/history/switches",
+            "/history/telemetry",
+            "/health"
+        ]
+    }
 
 if __name__ == "__main__":
-    # Create controller
-    controller = PhaseBalancingController()
-    
-    # Register houses
-    controller.registry.add_house("h1", "L1")
-    controller.registry.add_house("h2", "L1")
-    controller.registry.add_house("h3", "L2")
-    controller.registry.add_house("h4", "L3")
-    
-    print("=" * 80)
-    print("MORNING SCENARIO (Solar Export)")
-    print("=" * 80)
-    
-    # Morning readings - houses exporting solar
-    controller.registry.update_reading("h1", voltage=248, power_kw=2.5)  # Heavy export
-    controller.registry.update_reading("h2", voltage=246, power_kw=1.8)  # Medium export
-    controller.registry.update_reading("h3", voltage=233, power_kw=-0.5) # Small import
-    controller.registry.update_reading("h4", voltage=231, power_kw=-0.3) # Small import
-    
-    status = controller.run_cycle()
-    print(f"\nMode: {status['mode']}")
-    print(f"Imbalance: {status['imbalance_kw']} kW")
-    print("\nPhase Stats:")
-    for ps in status["phase_stats"]:
-        print(f"  {ps['phase']}: {ps['power_kw']:+.2f} kW, {ps['voltage']}V, {ps['house_count']} houses")
-    
-    if status["recommendation"]:
-        rec = status["recommendation"]
-        print(f"\n Recommendation:")
-        print(f"   {rec['reason']}")
-        print(f"   House: {rec['house_id']}")
-        print(f"   Move: {rec['from_phase']} → {rec['to_phase']}")
-        print(f"   Improvement: {rec['improvement_kw']} kW")
-    else:
-        print("\n No switch needed - system balanced")
-    
-    print("\n" + "=" * 80)
-    print("NIGHT SCENARIO (Grid Import)")
-    print("=" * 80)
-    
-    # Night readings - houses importing from grid
-    controller.registry.update_reading("h1", voltage=233, power_kw=-3.2)  # Heavy load
-    controller.registry.update_reading("h2", voltage=232, power_kw=-2.5)  # Medium load
-    controller.registry.update_reading("h3", voltage=239, power_kw=-0.8)  # Light load
-    controller.registry.update_reading("h4", voltage=238, power_kw=-0.6)  # Light load
-    
-    status = controller.run_cycle()
-    print(f"\nMode: {status['mode']}")
-    print(f"Imbalance: {status['imbalance_kw']} kW")
-    print("\nPhase Stats:")
-    for ps in status["phase_stats"]:
-        print(f"  {ps['phase']}: {ps['power_kw']:+.2f} kW, {ps['voltage']}V, {ps['house_count']} houses")
-    
-    if status["recommendation"]:
-        rec = status["recommendation"]
-        print(f"\n Recommendation:")
-        print(f"   {rec['reason']}")
-        print(f"   House: {rec['house_id']}")
-        print(f"   Move: {rec['from_phase']} → {rec['to_phase']}")
-        print(f"   Improvement: {rec['improvement_kw']} kW")
-    else:
-        print("\n No switch needed - system balanced")
+    uvicorn.run(app, host="0.0.0.0", port=8000)

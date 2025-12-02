@@ -23,7 +23,7 @@ class NightLogic:
     def get_candidate_house(self) -> List[Dict]:
         '''
         Get houses that can be switched at night.
-        Priority to largest consumers (most negative power_kw).
+        Priority to largest consumers (positive `power_kw` meaning import).
         '''
         now=datetime.now()
         candidates = []
@@ -39,7 +39,7 @@ class NightLogic:
                 continue
 
             # At night we care about heavy consumers (positive power_kw).
-            if r.power_kw > 0.1:
+            if r.power_kw > 0.1:  # 0.1 kW threshold to avoid noise
                 candidates.append({
                     "house_id": house.house_id,
                     "current_phase": house.phase,

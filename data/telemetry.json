@@ -1,0 +1,44 @@
+[
+  {
+    "house_id": "h1",
+    "timestamp": "2025-12-02T19:37:30.001453",
+    "voltage": 248.0,
+    "power_kw": -3.5
+  },
+  {
+    "house_id": "h2",
+    "timestamp": "2025-12-02T19:39:09.189026",
+    "voltage": 230.0,
+    "power_kw": 2.0
+  },
+  {
+    "house_id": "h3",
+    "timestamp": "2025-12-02T19:39:19.531733",
+    "voltage": 231.0,
+    "power_kw": 1.5
+  },
+  {
+    "house_id": "h1",
+    "timestamp": "2025-12-02T19:59:52.187409",
+    "voltage": 248.0,
+    "power_kw": -3.5
+  },
+  {
+    "house_id": "h2",
+    "timestamp": "2025-12-02T20:00:00.474761",
+    "voltage": 230.0,
+    "power_kw": 2.0
+  },
+  {
+    "house_id": "h1",
+    "timestamp": "2025-12-02T20:14:25.456191",
+    "voltage": 248.0,
+    "power_kw": -3.5
+  },
+  {
+    "house_id": "h2",
+    "timestamp": "2025-12-02T20:14:31.333428",
+    "voltage": 230.0,
+    "power_kw": 2.0
+  }
+]

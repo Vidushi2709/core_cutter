@@ -181,3 +181,7 @@ This logic detects **large consumers** and tries to move them to reduce under-vo
 6. A smart phase switch recommendation is returned
 7. `HouseRegistry.apply_switch()` updates the house’s phase
 ---
+
+### To run the fastapi server: 
+
+python -m uvicorn app:app --reload --host 0.0.0.0 --port 8000
