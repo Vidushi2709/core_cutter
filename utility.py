@@ -23,6 +23,10 @@ from configerations import (
     HOUSES_DB,
     TELEMETRY_DB,
     HISTORY_DB,
+    MIN_IMPORT_FOR_SWITCH,
+    HIGH_EXPORT_THRESHOLD,
+    HIGH_IMPORT_THRESHOLD,
+    PHASE_OVERLOAD_THRESHOLD
 )
 from pathlib import Path
 import json
@@ -95,7 +99,7 @@ class DataStorage:
         except FileNotFoundError:
             return {}
     
-    def append_telemetry(self, house_id: str, reading: ReadingOfEachHouse):
+    def append_telemetry(self, house_id: str, reading: ReadingOfEachHouse, phase: str = None):
         path = Path(TELEMETRY_DB)
 
         # load existing array or create new
@@ -105,9 +109,10 @@ class DataStorage:
         except:
             data = []
 
-        # append new record
+        # append new record with phase information
         data.append({
             "house_id": house_id,
+            "phase": phase,
             "timestamp": reading.timestamp.isoformat(),
             "voltage": reading.voltage,
             "power_kw": reading.power_kw
@@ -121,8 +126,20 @@ class DataStorage:
         # Append switch events as JSONL
         path = Path(HISTORY_DB)
         path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "a", encoding="utf-8") as f:
-            f.write(json.dumps(switch_record) + "\n")
+        
+        # Load existing array or create new
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            data = []
+        
+        # Append new record
+        data.append(switch_record)
+        
+        # Save back as properly formatted JSON array
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
     
     def get_recent_telemetry(self, house_id: str, hours: int = 24) -> List[ReadingOfEachHouse]:
         path = Path(TELEMETRY_DB)
@@ -158,18 +175,15 @@ class DataStorage:
         path = Path(HISTORY_DB)
         if not path.exists():
             return []
-        records = []
-        with open(path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    records.append(json.loads(line))
-                except json.JSONDecodeError:
-                    continue
-        # return most recent `limit` entries
-        return records[-limit:]
+        
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                records = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return []
+        
+        # Return most recent `limit` entries (last N items in the array)
+        return records[-limit:] if len(records) > limit else records
 
 @dataclass
 class PhaseStats:
@@ -238,7 +252,7 @@ class HouseRegistry:
         # Persist both to the telemetry log and to the houses DB so that the
         # latest reading is reloaded after a restart.
         if self.storage:
-            self.storage.append_telemetry(house_id, reading)
+            self.storage.append_telemetry(house_id, reading, self.houses[house_id].phase)
             self.storage.save_houses(self.houses)
 
     def apply_switch(self, house_id: str, new_phase: str, reason: Optional[str] = None):
@@ -267,8 +281,6 @@ class HouseRegistry:
             except Exception:
                 # Best-effort logging only.
                 pass
-
-
 
 ''' Analytics on phases and houses 
 1) what is the current state of each phase
@@ -331,10 +343,66 @@ class PhaseRegistry:
         return "NIGHT"
     
     def detect_voltage_issues(self, phase_stat: List[PhaseStats]) -> Dict[str, List[str]]:
-        issues = {"OVER_VOLTAGE": [], "UNDER_VOLTAGE": []}
+        issues = {
+            "OVER_VOLTAGE": [],
+            "UNDER_VOLTAGE": [],
+            "OVERLOAD": [],
+            "EXCESSIVE_EXPORT": []
+        }
+        
         for ps in phase_stat:
+            # Voltage-based issues
             if ps.avg_voltage > OVERVOLTAGE_THRESHOLD:
                 issues["OVER_VOLTAGE"].append(ps.phase)
             elif ps.avg_voltage < UNDERVOLTAGE_THRESHOLD:
                 issues["UNDER_VOLTAGE"].append(ps.phase)
+            
+            # Power-based issues
+            # Positive power = consumption/import (overload)
+            if ps.total_power_kw > PHASE_OVERLOAD_THRESHOLD:
+                issues["OVERLOAD"].append(ps.phase)
+            
+            # Negative power = export/generation (excessive export)
+            if ps.total_power_kw < -PHASE_OVERLOAD_THRESHOLD:
+                issues["EXCESSIVE_EXPORT"].append(ps.phase)
+        
+        return issues
+    
+    def detect_power_issues(self, phase_stats: List[PhaseStats]) -> Dict[str, any]:
+        """Analyze power-based problems"""
+        issues = {
+            "overloaded_phases": [],
+            "high_export_phases": [],
+            "high_import_phases": [],
+            "max_export_phase": None,
+            "max_import_phase": None
+        }
+        
+        max_export = 0
+        max_import = 0
+        
+        for ps in phase_stats:
+            # Detect phase overload (either direction)
+            if abs(ps.total_power_kw) > PHASE_OVERLOAD_THRESHOLD:
+                issues["overloaded_phases"].append({
+                    "phase": ps.phase,
+                    "power_kw": ps.total_power_kw,
+                    "type": "import" if ps.total_power_kw > 0 else "export"
+                })
+            
+            # Track high export phases (negative power = export)
+            if ps.total_power_kw < -HIGH_EXPORT_THRESHOLD:
+                issues["high_export_phases"].append(ps.phase)
+                export_magnitude = abs(ps.total_power_kw)
+                if export_magnitude > max_export:
+                    max_export = export_magnitude
+                    issues["max_export_phase"] = ps.phase
+            
+            # Track high import phases (positive power = import)
+            if ps.total_power_kw > HIGH_IMPORT_THRESHOLD:
+                issues["high_import_phases"].append(ps.phase)
+                if ps.total_power_kw > max_import:
+                    max_import = ps.total_power_kw
+                    issues["max_import_phase"] = ps.phase
+        
         return issues

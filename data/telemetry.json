@@ -40,5 +40,75 @@
     "timestamp": "2025-12-02T20:14:31.333428",
     "voltage": 230.0,
     "power_kw": 2.0
+  },
+  {
+    "house_id": "h1",
+    "phase": "L2",
+    "timestamp": "2025-12-03T11:55:55.553081",
+    "voltage": 230.5,
+    "power_kw": -2.5
+  },
+  {
+    "house_id": "h1",
+    "phase": "L2",
+    "timestamp": "2025-12-03T12:07:47.933210",
+    "voltage": 230.5,
+    "power_kw": -2.5
+  },
+  {
+    "house_id": "h1",
+    "phase": "L2",
+    "timestamp": "2025-12-03T12:11:25.656735",
+    "voltage": 230.5,
+    "power_kw": -2.5
+  },
+  {
+    "house_id": "h1",
+    "phase": "L2",
+    "timestamp": "2025-12-03T12:12:22.232433",
+    "voltage": 230.5,
+    "power_kw": -2.5
+  },
+  {
+    "house_id": "h1",
+    "phase": "L2",
+    "timestamp": "2025-12-03T12:12:46.264489",
+    "voltage": 230.5,
+    "power_kw": -2.5
+  },
+  {
+    "house_id": "h1",
+    "phase": "L2",
+    "timestamp": "2025-12-03T12:13:04.859398",
+    "voltage": 230.5,
+    "power_kw": -2.5
+  },
+  {
+    "house_id": "H_SOLAR_BIG",
+    "phase": "L1",
+    "timestamp": "2025-12-03T12:13:35.318620",
+    "voltage": 248.3,
+    "power_kw": -4.8
+  },
+  {
+    "house_id": "H_LOAD_A",
+    "phase": "L2",
+    "timestamp": "2025-12-03T12:13:51.102641",
+    "voltage": 229.1,
+    "power_kw": 2.9
+  },
+  {
+    "house_id": "H_LOAD_B",
+    "phase": "L3",
+    "timestamp": "2025-12-03T12:15:03.312967",
+    "voltage": 231.0,
+    "power_kw": 3.4
+  },
+  {
+    "house_id": "H_LOAD_B",
+    "phase": "L3",
+    "timestamp": "2025-12-03T12:20:30.353027",
+    "voltage": 231.0,
+    "power_kw": 3.4
   }
 ]

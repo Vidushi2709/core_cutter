@@ -18,6 +18,13 @@ UNDERVOLTAGE_THRESHOLD = 215.0
 NORMAL_VOLTAGE_MIN = 220.0
 NORMAL_VOLTAGE_MAX = 240.0
 
+# Power thresholds
+MIN_EXPORT_FOR_SWITCH = 0.5  # kW - minimum export to consider moving
+MIN_IMPORT_FOR_SWITCH = 0.5  # kW - minimum import to consider moving
+HIGH_EXPORT_THRESHOLD = 3.0  # kW - high solar export
+HIGH_IMPORT_THRESHOLD = 3.0  # kW - high consumption
+PHASE_OVERLOAD_THRESHOLD = 5.0
+
 # Imbalance thresholds
 HIGH_IMBALANCE_KW = 2.0
 CRITICAL_IMBALANCE_KW = 3.5

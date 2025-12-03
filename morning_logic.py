@@ -49,7 +49,9 @@ class MorningLogic:
                     "power_kw": r.power_kw,
                     "voltage": r.voltage,
                 })
-        candidates.sort(key=lambda x: x["power_kw"], reverse=True) # sort by magnitude of export (largest exporters first)
+        # Sort by magnitude of export (largest exporters first)
+        # Since exporters have negative power_kw, sort without reverse to get most negative first
+        candidates.sort(key=lambda x: abs(x["power_kw"]), reverse=True)
         return candidates
 
     def find_best_switch(self) -> Optional[RecommendedSwitch]:

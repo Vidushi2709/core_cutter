@@ -14,6 +14,7 @@ from configerations import (
     MIN_SWITCH_GAP_MIN,
     SWITCH_IMPROVEMENT_KW,
     READING_EXPIRY_SECONDS,
+    
 )
 class NightLogic:
     def __init__(self, registry: HouseRegistry, analyzer: PhaseRegistry):
