@@ -1,35 +1,35 @@
 from pathlib import Path
 
 # Timing / gating
-MIN_SWITCH_GAP_MIN = 20  # Minimum minutes between switches for same house
-AUTO_BALANCE_INTERVAL = 60  # Run auto-balancing every 60 seconds
-READING_EXPIRY_SECONDS = 3600  # Discard readings older than this
+MIN_SWITCH_GAP_MIN = 0.1
+AUTO_BALANCE_INTERVAL = 60
+READING_EXPIRY_SECONDS = 3600
 
 # Phases
 PHASES = ["L1", "L2", "L3"]
 
 # Switch / balancing tuning
-SWITCH_IMPROVEMENT_KW = 0.3  # Minimum improvement needed to trigger switch
-EXPORT_MODE_THRESHOLD = 0.5
+SWITCH_IMPROVEMENT_KW = 0.1  # Smaller improvement needed because loads are tiny
+EXPORT_MODE_THRESHOLD = 0.2  # Lower threshold for light systems
 
-# Voltage thresholds
-OVERVOLTAGE_THRESHOLD = 245.0
-UNDERVOLTAGE_THRESHOLD = 215.0
-NORMAL_VOLTAGE_MIN = 220.0
-NORMAL_VOLTAGE_MAX = 240.0
+# Voltage thresholds for 100–200V system
+OVERVOLTAGE_THRESHOLD = 250.0
+UNDERVOLTAGE_THRESHOLD = 200.0
+NORMAL_VOLTAGE_MIN = 200.0
+NORMAL_VOLTAGE_MAX = 240
 
-# Power thresholds
-MIN_EXPORT_FOR_SWITCH = 0.5  # kW - minimum export to consider moving
-MIN_IMPORT_FOR_SWITCH = 0.5  # kW - minimum import to consider moving
-HIGH_EXPORT_THRESHOLD = 3.0  # kW - high solar export
-HIGH_IMPORT_THRESHOLD = 3.0  # kW - high consumption
-PHASE_OVERLOAD_THRESHOLD = 5.0
+# Power thresholds for light loads
+MIN_EXPORT_FOR_SWITCH = 0.05     # 50W
+MIN_IMPORT_FOR_SWITCH = 0.05     # 50W
+HIGH_EXPORT_THRESHOLD = 0.4      # 400W
+HIGH_IMPORT_THRESHOLD = 0.4      # 400W
+PHASE_OVERLOAD_THRESHOLD = 1.0   # 1kW safe limit
 
 # Imbalance thresholds
-HIGH_IMBALANCE_KW = 2.0
-CRITICAL_IMBALANCE_KW = 3.5
+HIGH_IMBALANCE_KW = 0.3         # 300W
+CRITICAL_IMBALANCE_KW = 0.6     # 600W
 
-# Data storage (Paths)
+# Data storage
 DATA_DIR = Path("./data")
 HOUSES_DB = DATA_DIR / "houses.json"
 TELEMETRY_DB = DATA_DIR / "telemetry.json"

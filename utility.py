@@ -36,11 +36,13 @@ class ReadingOfEachHouse:
     """Data from one house at a particular time."""
     timestamp: datetime
     voltage: float
+    current : float
     power_kw: float
     def to_dict(self) -> Dict:
         return {
             "timestamp": self.timestamp.isoformat(),
             "voltage": self.voltage,
+            "current": self.current,
             "power_kw": self.power_kw,
         } # to serialize reading data and store it in json format
     
@@ -50,6 +52,7 @@ class ReadingOfEachHouse:
         return cls(
             timestamp=datetime.fromisoformat(data["timestamp"]),
             voltage=data["voltage"],
+            current=data.get("current", 0.0),
             power_kw=data["power_kw"],
         ) # to deserialize reading data from json format back to ReadingOfEachHouse object
 
@@ -115,6 +118,7 @@ class DataStorage:
             "phase": phase,
             "timestamp": reading.timestamp.isoformat(),
             "voltage": reading.voltage,
+            "current": reading.current,
             "power_kw": reading.power_kw
         })
 
@@ -165,6 +169,7 @@ class DataStorage:
                     ReadingOfEachHouse(
                         timestamp=ts,
                         voltage=entry["voltage"],
+                        current = entry.get("current", 0.0),
                         power_kw=entry["power_kw"]
                     )
                 )
@@ -236,13 +241,14 @@ class HouseRegistry:
     # Note: `power_kw` sign convention used across the codebase:
     #  - positive => consumption/import
     #  - negative => generation/export
-    def update_reading(self, house_id: str, voltage: float, power_kw: float):
+    def update_reading(self, house_id: str, voltage: float, current: float, power_kw: float):
         if house_id not in self.houses:
             raise ValueError(f"Unknown house: {house_id}")
         
         reading = ReadingOfEachHouse(
             timestamp=datetime.now(),
             voltage=voltage,
+            current=current,
             power_kw=power_kw
         )
         

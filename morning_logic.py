@@ -67,6 +67,13 @@ class MorningLogic:
         phase_stats = self.analyzer.get_phase_stats()
         current_imbalance_kw = self.analyzer.get_imbalance(phase_stats)
 
+        # Use voltage info to constrain moves:
+        # - Morning (DAY) = solar/export mode
+        # - Only move houses OFF phases that are over-voltage
+        # - Only move them TO phases that are NOT over-voltage (normal or under)
+        voltage_issues = self.analyzer.detect_voltage_issues(phase_stats)
+        over_voltage_phases = set(voltage_issues.get("OVER_VOLTAGE", []))
+
         # phase_power: mapping phase -> signed total kW
         phase_power = {ps.phase: ps.total_power_kw for ps in phase_stats}
 
@@ -77,8 +84,16 @@ class MorningLogic:
             from_phase = c["current_phase"]
             power = c["power_kw"]
 
+            # If we have any over-voltage phases, only move houses *from* those.
+            if over_voltage_phases and from_phase not in over_voltage_phases:
+                continue
+
             for to_phase in PHASES:
                 if to_phase == from_phase: # skip same phase
+                    continue
+
+                # If we have any over-voltage phases, do NOT move *to* an over-voltage phase.
+                if over_voltage_phases and to_phase in over_voltage_phases:
                     continue
 
                 # Simulate the move by adjusting phase totals.

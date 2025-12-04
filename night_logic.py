@@ -61,6 +61,11 @@ class NightLogic:
         phase_stats = self.analyzer.get_phase_stats()
         current_imbalance_kw = self.analyzer.get_imbalance(phase_stats)
 
+        # At night we care mainly about low voltage (heavy load).
+        # Only move houses OFF under-voltage phases, and TO phases that are NOT under-voltage.
+        voltage_issues = self.analyzer.detect_voltage_issues(phase_stats)
+        under_voltage_phases = set(voltage_issues.get("UNDER_VOLTAGE", []))
+
         phase_power = {ps.phase: ps.total_power_kw for ps in phase_stats}
         candidates = self.get_candidate_house()
         best_house: Optional[RecommendedSwitch] = None
@@ -69,8 +74,16 @@ class NightLogic:
             current_phase = c["current_phase"]
             power_kw = c["power_kw"]
 
+            # If we have any under-voltage phases, only move houses *from* those.
+            if under_voltage_phases and current_phase not in under_voltage_phases:
+                continue
+
             for target_phase in PHASES:
                 if target_phase == current_phase:
+                    continue
+
+                # If we have any under-voltage phases, do NOT move *to* an under-voltage phase.
+                if under_voltage_phases and target_phase in under_voltage_phases:
                     continue
 
                 new_phase_power = phase_power.copy()

@@ -18,6 +18,7 @@ class TelemetryData(BaseModel):
     """
     house_id: str
     voltage: float
+    current : float
     power_kw: float
     phase: str
 
@@ -59,11 +60,10 @@ controller = PhaseBalancingController(DataStorage())
 @app.post("/telemetry")
 def telemetry(data: TelemetryData):
     """
-    Single telemetry endpoint:
-    1. Accepts telemetry from the IoT sensor (house_id, voltage, power_kw, phase).
-    2. Ensures the house exists in the registry (auto-registers on first sight using `phase`).
-    3. Runs the full balancing logic.
-    4. Returns ONLY the switching recommendation (where to switch), if any.
+    Receives data from ESP32 and returns the Correct Phase for THAT house.
+    
+    The Fix: Instead of looking at the 'recommendation' (which might be for a different house),
+    we look at what the registry says THIS house should be doing.
     """
     try:
         house_id = data.house_id
@@ -73,25 +73,20 @@ def telemetry(data: TelemetryData):
             controller.registry.add_house(house_id, data.phase)
 
         # 2) Update latest reading for this house
-        controller.registry.update_reading(house_id, data.voltage, data.power_kw)
+        controller.registry.update_reading(house_id, data.voltage, data.current, data.power_kw)
 
-        # 3) Run one balancing cycle (this will also apply a switch if recommended)
-        status = controller.run_cycle()
+        # 3. Run the Logic Engine (updates the database if switches are needed)
+        controller.run_cycle()
 
-        # 4) Return just the recommendation ("where do we switch")
-        recommendation = status.get("recommendation")
+        # 4. CHECK THE DATABASE (The Fix)
+        # Instead of looking at the 'recommendation' (which might be for a different house),
+        # we look at what the registry says THIS house should be doing.
+        current_assigned_phase = controller.registry.houses[house_id].phase
 
-        # Caller only cares about phase outcome, so return a compact payload.
-        if recommendation:
-            return {
-                "status": "success",
-                "new_phase": recommendation["to_phase"],
-            }
-
-        # No switch -> keep the current phase of the reporting house.
+        # 5. Send the instruction back to ESP32
         return {
             "status": "success",
-            "new_phase": controller.registry.houses[house_id].phase,
+            "new_phase": current_assigned_phase  # The ESP32 will switch to this
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
