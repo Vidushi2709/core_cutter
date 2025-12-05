@@ -10,6 +10,10 @@ from utility import (
     PhaseRegistry
 )
 from configerations import (
+    CRITICAL_IMBALANCE_KW,
+    HIGH_IMBALANCE_KW,
+    HIGH_IMPORT_THRESHOLD,
+    MIN_IMBALANCE_KW,
     PHASES,
     MIN_SWITCH_GAP_MIN,
     SWITCH_IMPROVEMENT_KW,
@@ -29,6 +33,9 @@ class NightLogic:
         now=datetime.now()
         candidates = []
         for house in self.registry.houses.values():
+
+            if not hasattr(house, "last_changed") or not hasattr(house, "last_reading"):
+                continue
             time_since_switch= (now-house.last_changed).total_seconds()/60
             if time_since_switch < MIN_SWITCH_GAP_MIN:
                 continue
@@ -61,6 +68,9 @@ class NightLogic:
         phase_stats = self.analyzer.get_phase_stats()
         current_imbalance_kw = self.analyzer.get_imbalance(phase_stats)
 
+        if current_imbalance_kw < max(MIN_IMBALANCE_KW, HIGH_IMBALANCE_KW):
+            return None  # No significant imbalance to fix
+
         # At night we care mainly about low voltage (heavy load).
         # Only move houses OFF under-voltage phases, and TO phases that are NOT under-voltage.
         voltage_issues = self.analyzer.detect_voltage_issues(phase_stats)
@@ -85,7 +95,11 @@ class NightLogic:
                 # If we have any under-voltage phases, do NOT move *to* an under-voltage phase.
                 if under_voltage_phases and target_phase in under_voltage_phases:
                     continue
-
+                
+                if power_kw < HIGH_IMPORT_THRESHOLD and current_imbalance_kw < CRITICAL_IMBALANCE_KW:
+                    # skip small consumers when imbalance isn't critical
+                    continue
+                
                 new_phase_power = phase_power.copy()
                 new_phase_power[current_phase] -= power_kw
                 new_phase_power[target_phase] += power_kw
@@ -93,15 +107,22 @@ class NightLogic:
                 new_imbalance_kw = max(new_phase_power.values()) - min(new_phase_power.values())
                 improvement_kw = current_imbalance_kw - new_imbalance_kw
 
-                if improvement_kw >= SWITCH_IMPROVEMENT_KW:
-                    if (best_house is None) or (improvement_kw > best_house.improved_kw):
-                        best_house = RecommendedSwitch(
-                            house_id=house_id,
-                            from_phase=current_phase,
-                            to_phase=target_phase,
-                            improved_kw=improvement_kw,
-                            new_imbalance_kw=new_imbalance_kw,
-                            reason=f"Night: Moving {power_kw:.2f}kW from {current_phase} to {target_phase}",
+                if improvement_kw <=0:
+                    continue  # No improvement
+                
+                # Hysteresis: require larger improvement for small imbalances
+                hysteresis_threshold = max(SWITCH_IMPROVEMENT_KW, 0.35 * current_imbalance_kw)
+                if improvement_kw < hysteresis_threshold:
+                    continue
+
+                if (best_house is None) or (improvement_kw > best_house.improved_kw):
+                    best_house = RecommendedSwitch(
+                        house_id=house_id,
+                        from_phase=current_phase,
+                        to_phase=target_phase,
+                        improved_kw=improvement_kw,
+                        new_imbalance_kw=new_imbalance_kw,
+                        reason=f"Night: Moving {power_kw:.2f}kW from {current_phase} to {target_phase}",
                         )
 
         return best_house

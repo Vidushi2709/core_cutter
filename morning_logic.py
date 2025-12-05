@@ -10,6 +10,10 @@ from utility import (
     PhaseRegistry
 )
 from configerations import (
+    CRITICAL_IMBALANCE_KW,
+    HIGH_EXPORT_THRESHOLD,
+    HIGH_IMBALANCE_KW,
+    MIN_IMBALANCE_KW,
     PHASES,
     MIN_SWITCH_GAP_MIN,
     SWITCH_IMPROVEMENT_KW,
@@ -29,7 +33,10 @@ class MorningLogic:
         now=datetime.now()
         candidates = []
         for house in self.registry.houses.values():
-            time_since_switch= (now-house.last_changed).total_seconds()/60 # when was the last switch
+            if not hasattr(house, "last_changed") or not hasattr(house, "last_reading"):
+                continue
+
+            time_since_switch = (now-house.last_changed).total_seconds()/60 # when was the last switch
             if time_since_switch < MIN_SWITCH_GAP_MIN:
                 continue
 
@@ -67,6 +74,9 @@ class MorningLogic:
         phase_stats = self.analyzer.get_phase_stats()
         current_imbalance_kw = self.analyzer.get_imbalance(phase_stats)
 
+        if current_imbalance_kw < max(MIN_IMBALANCE_KW, HIGH_IMBALANCE_KW):
+            return None  # No significant imbalance to address
+        
         # Use voltage info to constrain moves:
         # - Morning (DAY) = solar/export mode
         # - Only move houses OFF phases that are over-voltage
@@ -88,6 +98,9 @@ class MorningLogic:
             if over_voltage_phases and from_phase not in over_voltage_phases:
                 continue
 
+            if abs(power) < HIGH_EXPORT_THRESHOLD and current_imbalance_kw < CRITICAL_IMBALANCE_KW:
+            # skip small exporters when imbalance isn't critical
+                continue
             for to_phase in PHASES:
                 if to_phase == from_phase: # skip same phase
                     continue
@@ -102,17 +115,30 @@ class MorningLogic:
                 new_power[to_phase] += power
 
                 new_imbalance_kw = max(new_power.values()) - min(new_power.values()) 
+
+                if new_imbalance_kw >= current_imbalance_kw:
+                    continue  # No improvement
+                
                 improvement_kw = current_imbalance_kw - new_imbalance_kw
 
-                if improvement_kw >= SWITCH_IMPROVEMENT_KW:
-                    if (best_house is None) or (improvement_kw > best_house.improved_kw):
-                        best_house = RecommendedSwitch(
-                            house_id=house_id,
-                            from_phase=from_phase,
-                            to_phase=to_phase,
-                            improved_kw=improvement_kw,
-                            new_imbalance_kw=new_imbalance_kw,
-                            reason=f"Day Time: Moving {power:.2f}kW from {from_phase} to {to_phase}",
-                        )
+                # skip useless moves
+                if improvement_kw <= 0:
+                    continue
+
+                # Hysteresis threshold: require improvement to be both >= SWITCH_IMPROVEMENT_KW
+                # and relative to current imbalance to avoid tiny marginal gains.
+                hysteresis_threshold = max(SWITCH_IMPROVEMENT_KW, 0.35 * current_imbalance_kw)
+                if improvement_kw < hysteresis_threshold:
+                    continue
+
+                if (best_house is None) or (improvement_kw > best_house.improved_kw):
+                    best_house = RecommendedSwitch(
+                        house_id=house_id,
+                        from_phase=from_phase,
+                        to_phase=to_phase,
+                        improved_kw=improvement_kw,
+                        new_imbalance_kw=new_imbalance_kw,
+                        reason=f"Day Time: Moving {power:.2f}kW from {from_phase} to {to_phase}",
+                    )
 
         return best_house
