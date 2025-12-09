@@ -12,24 +12,23 @@ Main responsibilities:
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any
+from pathlib import Path
+import json
 from configerations import (
     PHASES,
     READING_EXPIRY_SECONDS,
-    EXPORT_MODE_THRESHOLD,
+    CURRENT_MODE_THRESHOLD,
     OVERVOLTAGE_THRESHOLD,
     UNDERVOLTAGE_THRESHOLD,
     DATA_DIR,
     HOUSES_DB,
     TELEMETRY_DB,
     HISTORY_DB,
-    MIN_IMPORT_FOR_SWITCH,
     HIGH_EXPORT_THRESHOLD,
     HIGH_IMPORT_THRESHOLD,
     PHASE_OVERLOAD_THRESHOLD
 )
-from pathlib import Path
-import json
 
 @dataclass
 class ReadingOfEachHouse:
@@ -49,8 +48,12 @@ class ReadingOfEachHouse:
     @classmethod
     def from_dict(cls, data: Dict) -> 'ReadingOfEachHouse':
         """Recreate a ReadingOfEachHouse from a dict loaded from JSON."""
+        ts = datetime.fromisoformat(data["timestamp"])
+        # Ensure UTC-aware datetime; if naive, assume UTC
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
         return cls(
-            timestamp=datetime.fromisoformat(data["timestamp"]),
+            timestamp=ts,
             voltage=data["voltage"],
             current=data.get("current", 0.0),
             power_kw=data["power_kw"],
@@ -73,10 +76,14 @@ class HouseState:
         }
     @classmethod
     def from_dict(cls, data: Dict) -> 'HouseState':
+        lc = datetime.fromisoformat(data["last_changed"])
+        # Ensure UTC-aware datetime; if naive, assume UTC
+        if lc.tzinfo is None:
+            lc = lc.replace(tzinfo=timezone.utc)
         return cls(
             house_id=data["house_id"],
             phase=data["phase"],
-            last_changed=datetime.fromisoformat(data["last_changed"]),
+            last_changed=lc,
             last_reading=ReadingOfEachHouse.from_dict(data["last_reading"]) if data["last_reading"] else None,
         )
     
@@ -88,31 +95,37 @@ class DataStorage:
             Path(DATA_DIR).mkdir(parents=True, exist_ok=True)
         else:
             DATA_DIR.mkdir(parents=True, exist_ok=True)
+    def _load_json(self, path: Path, default: Any) -> Any:
+        if not path.exists():
+            return default
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return default
+
+    def _write_json(self, path: Path, data: Any):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
     
     def save_houses(self, houses: Dict[str, HouseState]):
         data = {hid: house.to_dict() for hid, house in houses.items()}
-        with open(HOUSES_DB, "w") as f:
-            json.dump(data, f, indent=2)
+        self._write_json(Path(HOUSES_DB), data)
     
     def load_houses(self) -> Dict[str, HouseState]:
-        try:
-            with open(HOUSES_DB, "r") as f:
-                data = json.load(f)
-            return {hid: HouseState.from_dict(hdata) for hid, hdata in data.items()}
-        except FileNotFoundError:
+        data = self._load_json(Path(HOUSES_DB), default={})
+        if not isinstance(data, dict):
             return {}
+        return {hid: HouseState.from_dict(hdata) for hid, hdata in data.items()}
     
-    def append_telemetry(self, house_id: str, reading: ReadingOfEachHouse, phase: str = None):
+    def append_telemetry(self, house_id: str, reading: ReadingOfEachHouse, phase: str):
         path = Path(TELEMETRY_DB)
+        data = self._load_json(path, default=[])
 
-        # load existing array or create new
-        try:
-            with open(path, "r") as f:
-                data = json.load(f)
-        except:
-            data = []
+        # Replace any existing entry for this house to keep only the latest reading per house.
+        data = [entry for entry in data if entry.get("house_id") != house_id]
 
-        # append new record with phase information
         data.append({
             "house_id": house_id,
             "phase": phase,
@@ -122,41 +135,21 @@ class DataStorage:
             "power_kw": reading.power_kw
         })
 
-        # save back
-        with open(path, "w") as f:
-            json.dump(data, f, indent=2)
+        self._write_json(path, data)
         
     def append_switch_history(self, switch_record: Dict):
-        # Append switch events as JSONL
         path = Path(HISTORY_DB)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Load existing array or create new
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            data = []
-        
+        data = self._load_json(path, default=[])
         # Append new record
         data.append(switch_record)
-        
         # Save back as properly formatted JSON array
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
+        self._write_json(path, data)
     
     def get_recent_telemetry(self, house_id: str, hours: int = 24) -> List[ReadingOfEachHouse]:
         path = Path(TELEMETRY_DB)
-        if not path.exists():
-            return []
+        data = self._load_json(path, default=[])
 
-        try:
-            with open(path, "r") as f:
-                data = json.load(f)  # list of entries
-        except:
-            return []
-
-        cutoff = datetime.utcnow() - timedelta(hours=hours)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
         result = []
 
         for entry in data:
@@ -164,6 +157,9 @@ class DataStorage:
                 continue
 
             ts = datetime.fromisoformat(entry["timestamp"])
+            # Ensure UTC-aware datetime; if naive, assume UTC
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
             if ts >= cutoff:
                 result.append(
                     ReadingOfEachHouse(
@@ -178,15 +174,9 @@ class DataStorage:
 
     def get_switch_history(self, limit: int = 24) -> List[Dict]:
         path = Path(HISTORY_DB)
-        if not path.exists():
+        records = self._load_json(path, default=[])
+        if not isinstance(records, list):
             return []
-        
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                records = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            return []
-        
         # Return most recent `limit` entries (last N items in the array)
         return records[-limit:] if len(records) > limit else records
 
@@ -230,7 +220,7 @@ class HouseRegistry:
         self.houses[house_id] = HouseState(
             house_id=house_id,
             phase=initial_phase,
-            last_changed=datetime(1970, 1, 1),
+            last_changed=datetime(1970, 1, 1, tzinfo=timezone.utc),
             last_reading=None,
         )
         if self.storage:
@@ -246,7 +236,7 @@ class HouseRegistry:
             raise ValueError(f"Unknown house: {house_id}")
         
         reading = ReadingOfEachHouse(
-            timestamp=datetime.now(),
+            timestamp=datetime.now(timezone.utc),
             voltage=voltage,
             current=current,
             power_kw=power_kw
@@ -267,7 +257,7 @@ class HouseRegistry:
 
         old_phase = self.houses[house_id].phase
         self.houses[house_id].phase = new_phase
-        self.houses[house_id].last_changed = datetime.now()
+        self.houses[house_id].last_changed = datetime.now(timezone.utc)
 
         # Persist the updated house state and log the switch, if storage
         # is configured. Any logging error is swallowed so it doesn't
@@ -276,7 +266,7 @@ class HouseRegistry:
             self.storage.save_houses(self.houses)
 
             switch_record = {
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "house_id": house_id,
                 "from_phase": old_phase,
                 "to_phase": new_phase,
@@ -284,9 +274,9 @@ class HouseRegistry:
             }
             try:
                 self.storage.append_switch_history(switch_record)
-            except Exception:
-                # Best-effort logging only.
-                pass
+            except Exception as exc:
+                # Best-effort logging only, but surface a warning for diagnostics.
+                print(f"Warning: failed to append switch history for {house_id}: {exc}")
 
 ''' Analytics on phases and houses 
 1) what is the current state of each phase
@@ -299,7 +289,7 @@ class PhaseRegistry:
     def get_phase_stats(self) -> List[PhaseStats]:
         """Current stats for all phases."""
         stats = {p: {"power": 0.0, "voltages": [], "count": 0} for p in PHASES}
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
 
         for house in self.registry.houses.values():
             r = house.last_reading
@@ -340,13 +330,28 @@ class PhaseRegistry:
         return max(powers) - min(powers)
 
     def detect_mode(self, phase_stat: List[PhaseStats]) -> str:
-        # Exports are negative totals. Compute total export power (kW)
-        # by summing the absolute value of negative phase totals.
-        total_export = sum(-ps.total_power_kw for ps in phase_stat if ps.total_power_kw < 0)
-        # If exported power exceeds threshold, consider it daytime (solar exporting).
-        if total_export > EXPORT_MODE_THRESHOLD:
-            return "DAY"
-        return "NIGHT"
+        # Mode is derived from the sign of current instead of power to be
+        # resilient to noisy power calculations. Negative current means export.
+        now = datetime.now(timezone.utc)
+        export_current = 0.0
+        import_current = 0.0
+
+        for house in self.registry.houses.values():
+            reading = house.last_reading
+            if reading is None:
+                continue
+            if READING_EXPIRY_SECONDS > 0:
+                if (now - reading.timestamp).total_seconds() > READING_EXPIRY_SECONDS:
+                    continue
+
+            if reading.current < 0:
+                export_current += -reading.current  # accumulate magnitude of exports
+            else:
+                import_current += reading.current
+
+        if export_current > CURRENT_MODE_THRESHOLD and export_current >= import_current:
+            return "EXPORT"
+        return "CONSUME"
     
     def detect_voltage_issues(self, phase_stat: List[PhaseStats]) -> Dict[str, List[str]]:
         issues = {
@@ -357,11 +362,13 @@ class PhaseRegistry:
         }
         
         for ps in phase_stat:
-            # Voltage-based issues
-            if ps.avg_voltage > OVERVOLTAGE_THRESHOLD:
-                issues["OVER_VOLTAGE"].append(ps.phase)
-            elif ps.avg_voltage < UNDERVOLTAGE_THRESHOLD:
-                issues["UNDER_VOLTAGE"].append(ps.phase)
+            # Only check voltage if phase has houses (avg_voltage > 0 means houses present)
+            if ps.avg_voltage > 0:
+                # Voltage-based issues
+                if ps.avg_voltage > OVERVOLTAGE_THRESHOLD:
+                    issues["OVER_VOLTAGE"].append(ps.phase)
+                elif ps.avg_voltage < UNDERVOLTAGE_THRESHOLD:
+                    issues["UNDER_VOLTAGE"].append(ps.phase)
             
             # Power-based issues
             # Positive power = consumption/import (overload)
@@ -374,7 +381,7 @@ class PhaseRegistry:
         
         return issues
     
-    def detect_power_issues(self, phase_stats: List[PhaseStats]) -> Dict[str, any]:
+    def detect_power_issues(self, phase_stats: List[PhaseStats]) -> Dict[str, Any]:
         """Analyze power-based problems"""
         issues = {
             "overloaded_phases": [],

@@ -1,8 +1,7 @@
 '''
-handles phase balancing during night time.
+Consume-mode logic -> handles phase balancing when system is consuming.
 '''
-from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, List
 from utility import (
     RecommendedSwitch, 
@@ -15,12 +14,10 @@ from configerations import (
     HIGH_IMPORT_THRESHOLD,
     MIN_IMBALANCE_KW,
     PHASES,
-    MIN_SWITCH_GAP_MIN,
     SWITCH_IMPROVEMENT_KW,
     READING_EXPIRY_SECONDS,
-    
 )
-class NightLogic:
+class consumption_logic:
     def __init__(self, registry: HouseRegistry, analyzer: PhaseRegistry):
         self.registry = registry
         self.analyzer = analyzer
@@ -29,21 +26,21 @@ class NightLogic:
         '''
         Get houses that can be switched at night.
         Priority to largest consumers (positive `power_kw` meaning import).
+        
+        NOTE: MIN_SWITCH_GAP_MIN validation is done in main.py run_cycle(),
+        not here, to enforce single-switch-per-run logic consistently.
         '''
-        now=datetime.now()
+        now = datetime.now(timezone.utc)
         candidates = []
         for house in self.registry.houses.values():
 
             if not hasattr(house, "last_changed") or not hasattr(house, "last_reading"):
                 continue
-            time_since_switch= (now-house.last_changed).total_seconds()/60
-            if time_since_switch < MIN_SWITCH_GAP_MIN:
-                continue
 
-            r=house.last_reading
+            r = house.last_reading
             if not r:
                 continue
-            if (now-r.timestamp).total_seconds() > READING_EXPIRY_SECONDS:
+            if (now - r.timestamp).total_seconds() > READING_EXPIRY_SECONDS:
                 continue
 
             # At night we care about heavy consumers (positive power_kw).
@@ -84,22 +81,22 @@ class NightLogic:
             current_phase = c["current_phase"]
             power_kw = c["power_kw"]
 
-            # If we have any under-voltage phases, only move houses *from* those.
-            if under_voltage_phases and current_phase not in under_voltage_phases:
-                continue
+            # Sign convention: power_kw > 0 means consuming (import).
+            # The candidates list filters for power_kw > 0.1, so power_kw should always be positive here.
+            assert isinstance(power_kw, (int, float)), f"power_kw must be numeric, got {type(power_kw)}"
+            assert power_kw > 0, f"Expected consumer (power_kw > 0), got power_kw={power_kw} for house {house_id}"
 
             for target_phase in PHASES:
                 if target_phase == current_phase:
                     continue
-
-                # If we have any under-voltage phases, do NOT move *to* an under-voltage phase.
-                if under_voltage_phases and target_phase in under_voltage_phases:
-                    continue
                 
                 if power_kw < HIGH_IMPORT_THRESHOLD and current_imbalance_kw < CRITICAL_IMBALANCE_KW:
-                    # skip small consumers when imbalance isn't critical
                     continue
                 
+                # Simulate the move by adjusting phase totals.
+                # When moving consumer from current_phase to target_phase:
+                #   - Remove power from current_phase: new_phase_power[current_phase] -= power_kw (power_kw is positive, so this decreases)
+                #   - Add power to target_phase: new_phase_power[target_phase] += power_kw (power_kw is positive, so this increases)
                 new_phase_power = phase_power.copy()
                 new_phase_power[current_phase] -= power_kw
                 new_phase_power[target_phase] += power_kw
@@ -110,8 +107,10 @@ class NightLogic:
                 if improvement_kw <=0:
                     continue  # No improvement
                 
-                # Hysteresis: require larger improvement for small imbalances
-                hysteresis_threshold = max(SWITCH_IMPROVEMENT_KW, 0.35 * current_imbalance_kw)
+                # Hysteresis threshold: require minimum improvement to avoid oscillation.
+                # Use the larger of SWITCH_IMPROVEMENT_KW or 5% of current imbalance.
+                # This conservative approach blocks tiny marginal switches that cause oscillation.
+                hysteresis_threshold = max(SWITCH_IMPROVEMENT_KW, 0.05 * current_imbalance_kw)
                 if improvement_kw < hysteresis_threshold:
                     continue
 
@@ -122,7 +121,7 @@ class NightLogic:
                         to_phase=target_phase,
                         improved_kw=improvement_kw,
                         new_imbalance_kw=new_imbalance_kw,
-                        reason=f"Night: Moving {power_kw:.2f}kW from {current_phase} to {target_phase}",
+                        reason=f"Consume mode: Moving {power_kw:.2f}kW from {current_phase} to {target_phase}",
                         )
 
         return best_house

@@ -1,8 +1,7 @@
 '''
-Morning logic -> handles phase balancing during morning time.
+Export-mode logic -> handles phase balancing when system is exporting.
 '''
-from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone 
 from typing import Optional, Dict, List
 from utility import (
     RecommendedSwitch, 
@@ -15,41 +14,39 @@ from configerations import (
     HIGH_IMBALANCE_KW,
     MIN_IMBALANCE_KW,
     PHASES,
-    MIN_SWITCH_GAP_MIN,
     SWITCH_IMPROVEMENT_KW,
     READING_EXPIRY_SECONDS,
 )
 
-class MorningLogic:
+class export_logic:
     def __init__(self, registry: HouseRegistry, analyzer: PhaseRegistry):
         self.registry = registry
         self.analyzer = analyzer
     
     def get_candidate_house(self)-> List[Dict]:
         '''
-        Get houses that can be switched
-        Prioirty to largest exporters first
+        Get houses that can be switched.
+        Priority to largest exporters first.
+        
+        NOTE: MIN_SWITCH_GAP_MIN validation is done in main.py run_cycle(),
+        not here, to enforce single-switch-per-run logic consistently.
         '''
-        now=datetime.now()
+        now = datetime.now(timezone.utc)
         candidates = []
         for house in self.registry.houses.values():
             if not hasattr(house, "last_changed") or not hasattr(house, "last_reading"):
                 continue
 
-            time_since_switch = (now-house.last_changed).total_seconds()/60 # when was the last switch
-            if time_since_switch < MIN_SWITCH_GAP_MIN:
-                continue
-
-            r=house.last_reading
+            r = house.last_reading
             if not r:
                 continue
-            if (now-r.timestamp).total_seconds() > READING_EXPIRY_SECONDS: # reading too old
+            if (now - r.timestamp).total_seconds() > READING_EXPIRY_SECONDS:  # reading too old
                 continue
 
             # Morning: target large exporters (negative power_kw)
-            # Morning: negative `power_kw` indicates exporting (generation).
+            # Negative `power_kw` indicates exporting (generation).
             # Select significant exporters only (avoid small noisy values)
-            if r.power_kw < -0.1: # 0.1 kW threshold to avoid noise
+            if r.power_kw < -0.1:  # 0.1 kW threshold to avoid noise
                 candidates.append({
                     "house_id": house.house_id,
                     "current_phase": house.phase,
@@ -57,7 +54,7 @@ class MorningLogic:
                     "voltage": r.voltage,
                 })
         # Sort by magnitude of export (largest exporters first)
-        # Since exporters have negative power_kw, sort without reverse to get most negative first
+        # Since exporters have negative power_kw, sort to get most negative first
         candidates.sort(key=lambda x: abs(x["power_kw"]), reverse=True)
         return candidates
 
@@ -88,46 +85,46 @@ class MorningLogic:
         phase_power = {ps.phase: ps.total_power_kw for ps in phase_stats}
 
         candidates = self.get_candidate_house()
-        best_house: Optional[RecommendedSwitch] = None # track best move found
+        best_house: Optional[RecommendedSwitch] = None
         for c in candidates:
             house_id = c["house_id"]
             from_phase = c["current_phase"]
             power = c["power_kw"]
 
-            # If we have any over-voltage phases, only move houses *from* those.
-            if over_voltage_phases and from_phase not in over_voltage_phases:
-                continue
+            # Sign convention: power < 0 means exporting (generation).
+            # The candidates list filters for power_kw < -0.1, so power should always be negative here.
+            assert isinstance(power, (int, float)), f"power must be numeric, got {type(power)}"
+            assert power < 0, f"Expected exporter (power < 0), got power={power} for house {house_id}"
 
             if abs(power) < HIGH_EXPORT_THRESHOLD and current_imbalance_kw < CRITICAL_IMBALANCE_KW:
-            # skip small exporters when imbalance isn't critical
                 continue
+            
             for to_phase in PHASES:
-                if to_phase == from_phase: # skip same phase
-                    continue
-
-                # If we have any over-voltage phases, do NOT move *to* an over-voltage phase.
-                if over_voltage_phases and to_phase in over_voltage_phases:
+                if to_phase == from_phase:
                     continue
 
                 # Simulate the move by adjusting phase totals.
+                # When moving exporter from from_phase to to_phase:
+                #   - Remove power from from_phase: new_power[from_phase] -= power (power is negative, so this increases the value)
+                #   - Add power to to_phase: new_power[to_phase] += power (power is negative, so this decreases the value)
                 new_power = phase_power.copy()
                 new_power[from_phase] -= power 
                 new_power[to_phase] += power
 
-                new_imbalance_kw = max(new_power.values()) - min(new_power.values()) 
+                new_imbalance_kw = max(new_power.values()) - min(new_power.values())
 
                 if new_imbalance_kw >= current_imbalance_kw:
-                    continue  # No improvement
+                    continue
                 
                 improvement_kw = current_imbalance_kw - new_imbalance_kw
 
-                # skip useless moves
                 if improvement_kw <= 0:
                     continue
 
-                # Hysteresis threshold: require improvement to be both >= SWITCH_IMPROVEMENT_KW
-                # and relative to current imbalance to avoid tiny marginal gains.
-                hysteresis_threshold = max(SWITCH_IMPROVEMENT_KW, 0.35 * current_imbalance_kw)
+                # Hysteresis threshold: require minimum improvement to avoid oscillation.
+                # Use the larger of SWITCH_IMPROVEMENT_KW or 5% of current imbalance.
+                # This conservative approach blocks tiny marginal switches that cause oscillation.
+                hysteresis_threshold = max(SWITCH_IMPROVEMENT_KW, 0.05 * current_imbalance_kw)
                 if improvement_kw < hysteresis_threshold:
                     continue
 
@@ -138,7 +135,7 @@ class MorningLogic:
                         to_phase=to_phase,
                         improved_kw=improvement_kw,
                         new_imbalance_kw=new_imbalance_kw,
-                        reason=f"Day Time: Moving {power:.2f}kW from {from_phase} to {to_phase}",
+                        reason=f"Export mode: Moving {power:.2f}kW from {from_phase} to {to_phase}",
                     )
 
         return best_house

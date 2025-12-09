@@ -12,6 +12,7 @@ PHASES = ["L1", "L2", "L3"]
 # Switch / balancing tuning
 SWITCH_IMPROVEMENT_KW = 0.1  # Smaller improvement needed because loads are tiny
 EXPORT_MODE_THRESHOLD = 0.2  # Lower threshold for light systems
+CURRENT_MODE_THRESHOLD = 0.5  # Amps; exports above this imply export mode
 
 # Voltage thresholds for 100–200V system
 OVERVOLTAGE_THRESHOLD = 250.0

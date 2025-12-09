@@ -1,10 +1,8 @@
-from fastapi import FastAPI, HTTPException  # BackgroundTasks, asyncio not needed anymore
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import uvicorn
-# import asyncio  # Not needed - commented out auto-balance endpoints
 from main import PhaseBalancingController
-from utility import DataStorage  # HouseRegistry, PhaseRegistry not directly used
-# from configerations import AUTO_BALANCE_INTERVAL  # Not needed - commented out auto-balance
+from utility import DataStorage
 
 # Pydantic models
 class TelemetryData(BaseModel):
@@ -13,49 +11,58 @@ class TelemetryData(BaseModel):
 
     - house_id: unique house identifier
     - voltage: instantaneous voltage
+    - current: instantaneous current (negative = export, positive = import)
     - power_kw: signed power (positive = import / consumption, negative = export / generation)
     - phase: physical phase reported by the sensor (used on first sight of a house)
     """
     house_id: str
     voltage: float
-    current : float
+    current: float
     power_kw: float
     phase: str
 
 
-class HouseRegistration(BaseModel):
+# Response models for real-time analytics website
+class HouseReading(BaseModel):
+    """Current reading for a single house."""
     house_id: str
-    initial_phase: str
+    phase: str
+    voltage: float
+    current: float
+    power_kw: float
+    timestamp: str
+    mode_reading: str  # EXPORT or CONSUME
 
 
-# class ManualSwitchRequest(BaseModel):  # Not needed - commented out manual switch endpoint
-#     house_id: str
-#     to_phase: str
+class PhaseAnalytics(BaseModel):
+    """Analytics data for a single phase."""
+    phase: str
+    total_power_kw: float
+    avg_voltage: float
+    house_count: int
+    houses: list[HouseReading]
 
-app = FastAPI(title="Phase Balancing Controller", version="1.0")
-controller = PhaseBalancingController(DataStorage())  
-# auto_balance_running = False  # Not needed - commented out auto-balance endpoints
+
+class SystemStatus(BaseModel):
+    """Overall system status for real-time dashboard."""
+    timestamp: str
+    mode: str  # EXPORT or CONSUME
+    imbalance_kw: float
+    phases: list[PhaseAnalytics]
+    phase_issues: dict
+    power_issues: dict
 
 
-# async def _auto_balance_loop(interval: int):
-#     """DEPRECATED: Not needed"""
-#     global auto_balance_running
-#     while auto_balance_running:
-#         try:
-#             controller.run_cycle()
-#         except Exception:
-#             pass
-#         await asyncio.sleep(interval)
+class SwitchEvent(BaseModel):
+    """Switch event for timeline/history view."""
+    timestamp: str
+    house_id: str
+    from_phase: str
+    to_phase: str
+    reason: str
 
-# @app.post("/house/register_house")
-# def register_house(house: HouseRegistration):
-#     """DEPRECATED: Not needed"""
-#     # register a new house
-#     try:
-#         controller.registry.add_house(house.house_id, house.initial_phase)
-#         return {"status": "success", "message": f"House {house.house_id} registered on phase {house.initial_phase}"}
-#     except ValueError as e:
-#         raise HTTPException(status_code=400, detail=str(e))
+app = FastAPI(title="Phase Balancing Controller - Real-time Analytics", version="2.0")
+controller = PhaseBalancingController(DataStorage())
 
 @app.post("/telemetry")
 def telemetry(data: TelemetryData):
@@ -72,7 +79,7 @@ def telemetry(data: TelemetryData):
         if house_id not in controller.registry.houses:
             controller.registry.add_house(house_id, data.phase)
 
-        # 2) Update latest reading for this house
+        # 2) Update latest reading for this house (uses datetime.now(timezone.utc) internally)
         controller.registry.update_reading(house_id, data.voltage, data.current, data.power_kw)
 
         # 3. Run the Logic Engine (updates the database if switches are needed)
@@ -86,129 +93,227 @@ def telemetry(data: TelemetryData):
         # 5. Send the instruction back to ESP32
         return {
             "status": "success",
-            "new_phase": current_assigned_phase  # The ESP32 will switch to this
+            "house_id": house_id,
+            "new_phase": current_assigned_phase
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-# @app.post("/house/telemetry")
-# def get_telemetry(data: TelemetryData):
-#     """DEPRECATED: Use /telemetry instead"""
-#     try:
-#         controller.registry.update_reading(data.house_id, data.voltage, data.power_kw)
-#         return {"status": "success", "message": f"Telemetry updated for house {data.house_id}"}
-#     except ValueError as e:
-#         raise HTTPException(status_code=400, detail=str(e))
-
-# @app.post("/status")
-# def get_status():
-#     """DEPRECATED: Use /telemetry instead"""
-#     phase_stats = controller.analyzer.get_phase_stats()
-#     mode = controller.analyzer.detect_mode(phase_stats) 
-#     imbalance = controller.analyzer.get_imbalance(phase_stats)
-#     phase_issues = controller.analyzer.detect_voltage_issues(phase_stats)
-#     power_issues = controller.analyzer.detect_power_issues(phase_stats)
-
-#     return{
-#         "mode": mode,
-#         "imbalance_kw": round(imbalance, 2),
-#         "phase_stats": [
-#             {
-#                 "phase": ps.phase,
-#                 "power_kw": round(ps.total_power_kw, 2),
-#                 "voltage": round(ps.avg_voltage, 1) if ps.avg_voltage else None,
-#                 "house_count": ps.house_count
-#             }
-#             for ps in phase_stats
-#         ],
-#         "phase_issues": phase_issues,
-#         "power_issues": power_issues,
-#         "houses": {
-#             hid:{
-#                 "phase": h.phase,
-#                 "last_changed": h.last_changed.isoformat(),
-#                 "last_reading": {
-#                     "voltage": h.last_reading.voltage,
-#                     "power_kw": h.last_reading.power_kw,
-#                     "timestamp": h.last_reading.timestamp.isoformat(),
-#                 } if h.last_reading else None 
-#             }
-#             for hid, h in controller.registry.houses.items()
-#         }
-#     }
-
-# @app.post("/balance/run")
-# def run_balance_cycle():
-#     """DEPRECATED: Not needed - use /telemetry endpoint"""
-#     try:
-#         status = controller.run_cycle()
-#         return status
-#     except Exception as e:
-#         import traceback
-#         return {"error": str(e), "trace": traceback.format_exc()}
-
-# @app.post("/balance/auto/start")
-# async def start_auto_balance(background_tasks: BackgroundTasks):
-#     """DEPRECATED: Not needed"""
-#     """Start automatic balancing"""
-#     global auto_balance_running
-#     if auto_balance_running:
-#         return {"status": "info", "message": "Auto-balance already running"}
-
-#     auto_balance_running = True
-#     # start background loop (non-blocking)
-#     asyncio.create_task(_auto_balance_loop(AUTO_BALANCE_INTERVAL))
-#     return {"status": "success", "message": f"Auto-balance started (interval: {AUTO_BALANCE_INTERVAL}s)"}
+@app.get("/analytics/status")
+def get_system_status() -> SystemStatus:
+    """
+    Real-time system status for dashboard.
+    
+    Returns: voltage, current, power for each house; phase analytics; mode; imbalance; issues.
+    """
+    try:
+        from datetime import datetime, timezone
+        
+        phase_stats = controller.analyzer.get_phase_stats()
+        r_mode = controller.analyzer.detect_mode(phase_stats)
+        mode = controller._stable_mode(r_mode)
+        imbalance = controller.analyzer.get_imbalance(phase_stats)
+        phase_issues = controller.analyzer.detect_voltage_issues(phase_stats)
+        power_issues = controller.analyzer.detect_power_issues(phase_stats)
+        
+        # Build per-phase analytics with houses
+        phases_data = []
+        for ps in phase_stats:
+            # Get all houses on this phase
+            houses_on_phase = []
+            for house_id, house in controller.registry.houses.items():
+                if house.phase == ps.phase and house.last_reading:
+                    reading = house.last_reading
+                    houses_on_phase.append(HouseReading(
+                        house_id=house_id,
+                        phase=house.phase,
+                        voltage=round(reading.voltage, 2),
+                        current=round(reading.current, 2),
+                        power_kw=round(reading.power_kw, 3),
+                        timestamp=reading.timestamp.isoformat(),
+                        mode_reading="EXPORT" if reading.current < 0 else "CONSUME"
+                    ))
+            
+            phases_data.append(PhaseAnalytics(
+                phase=ps.phase,
+                total_power_kw=round(ps.total_power_kw, 2),
+                avg_voltage=round(ps.avg_voltage, 1) if ps.avg_voltage else 0.0,
+                house_count=ps.house_count,
+                houses=houses_on_phase
+            ))
+        
+        return SystemStatus(
+            timestamp=datetime.now(timezone.utc).isoformat(),
+            mode=mode,
+            imbalance_kw=round(imbalance, 2),
+            phases=phases_data,
+            phase_issues=phase_issues,
+            power_issues=power_issues
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching status: {str(e)}")
 
 
-# @app.post("/balance/auto/stop")
-# def stop_auto_balance():
-#     """DEPRECATED: Not needed"""
-#     """Stop automatic balancing"""
-#     global auto_balance_running
-#     auto_balance_running = False
-#     return {"status": "success", "message": "Auto-balance stopped"}
+@app.get("/analytics/houses")
+def get_all_houses() -> list[HouseReading]:
+    """
+    Get current readings for all houses.
+    
+    Returns: house_id, phase, voltage, current, power_kw, mode for each house.
+    """
+    try:
+        houses_list = []
+        for house_id, house in controller.registry.houses.items():
+            if house.last_reading:
+                reading = house.last_reading
+                houses_list.append(HouseReading(
+                    house_id=house_id,
+                    phase=house.phase,
+                    voltage=round(reading.voltage, 2),
+                    current=round(reading.current, 2),
+                    power_kw=round(reading.power_kw, 3),
+                    timestamp=reading.timestamp.isoformat(),
+                    mode_reading="EXPORT" if reading.current < 0 else "CONSUME"
+                ))
+        
+        # Sort by house_id for consistency
+        houses_list.sort(key=lambda h: h.house_id)
+        return houses_list
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching houses: {str(e)}")
 
-# @app.post("/switch/manual")
-# def manual_switch(req: ManualSwitchRequest):
-#     """DEPRECATED: Not needed"""
-#     """Manually switch a house to a different phase"""
-#     try:
-#         controller.registry.apply_switch(req.house_id, req.to_phase)
-#         return {"status": "success", "message": f"House {req.house_id} switched to {req.to_phase}"}
-#     except ValueError as e:
-#         raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/analytics/house/{house_id}")
+def get_house_details(house_id: str) -> HouseReading:
+    """
+    Get current reading for a specific house.
+    
+    Returns: voltage, current, power_kw, phase, and mode for the house.
+    """
+    try:
+        if house_id not in controller.registry.houses:
+            raise HTTPException(status_code=404, detail=f"House {house_id} not found")
+        
+        house = controller.registry.houses[house_id]
+        if not house.last_reading:
+            raise HTTPException(status_code=404, detail=f"No reading available for house {house_id}")
+        
+        reading = house.last_reading
+        return HouseReading(
+            house_id=house_id,
+            phase=house.phase,
+            voltage=round(reading.voltage, 2),
+            current=round(reading.current, 2),
+            power_kw=round(reading.power_kw, 3),
+            timestamp=reading.timestamp.isoformat(),
+            mode_reading="EXPORT" if reading.current < 0 else "CONSUME"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching house details: {str(e)}")
 
 
-# @app.get("/history/switches")
-# def get_switch_history(limit: int = 50):
-#     """DEPRECATED: Not needed"""
-#     """Get recent switch history"""
-#     history = controller.storage.get_switch_history(limit)
-#     return {"switches": history}
+@app.get("/analytics/switches")
+def get_switch_history(limit: int = 50) -> dict:
+    """
+    Get recent phase switch events for timeline/history view.
+    
+    Returns: list of switch events with timestamps, house_id, from_phase, to_phase, reason.
+    """
+    try:
+        history = controller.storage.get_switch_history(limit)
+        switches = [
+            SwitchEvent(
+                timestamp=event.get("timestamp", ""),
+                house_id=event.get("house_id", ""),
+                from_phase=event.get("from_phase", ""),
+                to_phase=event.get("to_phase", ""),
+                reason=event.get("reason", "")
+            )
+            for event in history
+        ]
+        return {
+            "count": len(switches),
+            "switches": switches
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching switch history: {str(e)}")
 
-# @app.get("/history/telemetry")
-# def get_telemetry_history(house_id: str, hours: int = 24):
-#     """DEPRECATED: Not needed"""
-#     telemetry = controller.storage.get_recent_telemetry(house_id, hours)
-#     return {
-#         "house_id": house_id,
-#         "telemetry": [t.to_dict() for t in telemetry],
-#         "count": len(telemetry)
-#     }
+
+@app.get("/analytics/phase/{phase}")
+def get_phase_details(phase: str) -> PhaseAnalytics:
+    """
+    Get detailed analytics for a specific phase.
+    
+    Returns: phase power, voltage, house count, and all houses on that phase.
+    """
+    try:
+        phase_stats = controller.analyzer.get_phase_stats()
+        phase_data = next((ps for ps in phase_stats if ps.phase == phase), None)
+        
+        if not phase_data:
+            raise HTTPException(status_code=404, detail=f"Phase {phase} not found")
+        
+        # Get all houses on this phase
+        houses_on_phase = []
+        for house_id, house in controller.registry.houses.items():
+            if house.phase == phase and house.last_reading:
+                reading = house.last_reading
+                houses_on_phase.append(HouseReading(
+                    house_id=house_id,
+                    phase=house.phase,
+                    voltage=round(reading.voltage, 2),
+                    current=round(reading.current, 2),
+                    power_kw=round(reading.power_kw, 3),
+                    timestamp=reading.timestamp.isoformat(),
+                    mode_reading="EXPORT" if reading.current < 0 else "CONSUME"
+                ))
+        
+        return PhaseAnalytics(
+            phase=phase,
+            total_power_kw=round(phase_data.total_power_kw, 2),
+            avg_voltage=round(phase_data.avg_voltage, 1) if phase_data.avg_voltage else 0.0,
+            house_count=phase_data.house_count,
+            houses=houses_on_phase
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching phase details: {str(e)}")
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok", "message": "Phase Balancing Controller is running"}
+    """Health check endpoint - verifies controller is operational"""
+    try:
+        from datetime import datetime, timezone
+        _ = controller.registry.houses
+        return {
+            "status": "ok",
+            "message": "Phase Balancing Controller is running",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "houses_registered": len(controller.registry.houses)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Controller unhealthy: {str(e)}")
+
 
 @app.get("/")
 def root():
     return {
-        "name": "Phase Balancing Controller",
-        "version": "1.0",
-        "endpoints": [
-            "/telemetry",  # Single endpoint for telemetry + status (includes phase info)
-        ]
+        "name": "Phase Balancing Controller - Real-time Analytics API",
+        "version": "2.0",
+        "endpoints": {
+            "telemetry": "POST /telemetry - Send house reading (voltage, current, power) from IoT device",
+            "analytics": {
+                "status": "GET /analytics/status - System-wide status (all phases, houses, mode, imbalance)",
+                "houses": "GET /analytics/houses - All houses with current readings",
+                "house": "GET /analytics/house/{house_id} - Single house details",
+                "phase": "GET /analytics/phase/{phase} - Phase analytics with all houses on phase",
+                "switches": "GET /analytics/switches - Switch history for timeline view"
+            },
+            "health": "GET /health - Health check"
+        }
     }
 
 if __name__ == "__main__":
