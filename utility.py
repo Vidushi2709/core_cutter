@@ -237,7 +237,8 @@ class HouseRegistry:
         elif self.storage and RESET_HOUSES_ON_START:
             self._reset_houses_on_start()
         # Recover latest readings from telemetry log to restore in-memory state
-        if self.storage and not (RESET_STATE_ON_START or RESET_HOUSES_ON_START):
+        # ONLY if we're NOT resetting state (prevents stale EWMA values)
+        elif self.storage and not (RESET_STATE_ON_START or RESET_HOUSES_ON_START):
             self._recover_latest_readings_from_telemetry()
 
     @staticmethod
@@ -262,10 +263,14 @@ class HouseRegistry:
             self.storage.save_houses(self.houses)
 
     def _reset_state_on_start(self):
-        """Clear cached readings and optionally telemetry when resetting on startup."""
+        """Clear cached readings and optionally telemetry when resetting on startup.
+        
+        This ensures a fresh start for balancing logic, preventing stale EWMA values
+        from affecting switch decisions.
+        """
         for house in self.houses.values():
             house.last_reading = None
-            house.smoothed_power_kw = None
+            house.smoothed_power_kw = None  # CRITICAL: Clear smoothed power to prevent stale EWMA
         if self.storage:
             self.storage.save_houses(self.houses)
             if RESET_TELEMETRY_ON_START:
@@ -289,7 +294,7 @@ class HouseRegistry:
             print(f"Warning: failed to fully reset houses on startup: {exc}")
     
     def _recover_latest_readings_from_telemetry(self):
-        """Recover latest readings from telemetry.jsonl on startup.
+        """Recover latest readings from telemetry.json on startup.
         
         This ensures in-memory state is restored after server restart,
         so analytics and balancing work even if telemetry arrived but
@@ -301,33 +306,44 @@ class HouseRegistry:
         if not telemetry_path.exists():
             return
         
-        # Read telemetry.jsonl line by line to find latest reading per house
+        # Read telemetry.json as JSON array (not JSONL)
         latest_per_house = {}  # house_id -> (timestamp, reading)
         
         try:
-            with open(telemetry_path, "r", encoding="utf-8") as f:
-                for line in f:
-                    try:
-                        entry = json.loads(line)
-                        house_id = entry.get("house_id")
-                        if not house_id:
-                            continue
-                        
-                        ts = datetime.fromisoformat(entry["timestamp"])
-                        if ts.tzinfo is None:
-                            ts = ts.replace(tzinfo=timezone.utc)
-                        
-                        # Keep only if this is newer than what we have
-                        if house_id not in latest_per_house or ts > latest_per_house[house_id][0]:
-                            reading = ReadingOfEachHouse(
-                                timestamp=ts,
-                                voltage=entry.get("voltage", 0.0),
-                                current=entry.get("current", 0.0),
-                                power_kw=entry.get("power_kw", 0.0)
-                            )
-                            latest_per_house[house_id] = (ts, reading)
-                    except (json.JSONDecodeError, KeyError, ValueError):
+            # Load entire JSON array
+            telemetry_data = self.storage._load_json(telemetry_path, default=[])
+            if not isinstance(telemetry_data, list):
+                print(f"Warning: Telemetry data is not a list, skipping recovery")
+                return
+            
+            # Find latest reading per house
+            for entry in telemetry_data:
+                try:
+                    house_id = entry.get("house_id")
+                    if not house_id:
                         continue
+                    
+                    ts = datetime.fromisoformat(entry["timestamp"])
+                    if ts.tzinfo is None:
+                        ts = ts.replace(tzinfo=timezone.utc)
+                    
+                    # Skip expired readings during recovery
+                    now = datetime.now(timezone.utc)
+                    if READING_EXPIRY_SECONDS > 0:
+                        if (now - ts).total_seconds() > READING_EXPIRY_SECONDS:
+                            continue
+                    
+                    # Keep only if this is newer than what we have
+                    if house_id not in latest_per_house or ts > latest_per_house[house_id][0]:
+                        reading = ReadingOfEachHouse(
+                            timestamp=ts,
+                            voltage=entry.get("voltage", 0.0),
+                            current=entry.get("current", 0.0),
+                            power_kw=entry.get("power_kw", 0.0)
+                        )
+                        latest_per_house[house_id] = (ts, reading)
+                except (KeyError, ValueError, TypeError) as e:
+                    continue
         except Exception as e:
             print(f"Warning: Failed to recover telemetry on startup: {e}")
             return
@@ -336,7 +352,7 @@ class HouseRegistry:
         for house_id, (_, reading) in latest_per_house.items():
             if house_id in self.houses:
                 self.houses[house_id].last_reading = reading
-                # Initialize smoothed power with the recovered reading
+                # Initialize smoothed power with the recovered reading (FRESH START)
                 self.houses[house_id].smoothed_power_kw = reading.power_kw
     
     # Note: `power_kw` sign convention used across the codebase:
