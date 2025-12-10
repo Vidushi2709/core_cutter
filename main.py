@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Dict, Optional
 
-from configerations import CRITICAL_IMBALANCE_KW, HIGH_EXPORT_THRESHOLD, HIGH_IMPORT_THRESHOLD, MIN_IMBALANCE_KW, MIN_SWITCH_GAP_MIN
+from configerations import CRITICAL_IMBALANCE_KW, HIGH_EXPORT_THRESHOLD, HIGH_IMPORT_THRESHOLD, HIGH_IMBALANCE_KW, MIN_IMBALANCE_KW, MIN_SWITCH_GAP_MIN
 from utility import HouseRegistry, PhaseRegistry, DataStorage
 from export import export_logic
 from consumption import consumption_logic
@@ -73,9 +73,16 @@ class PhaseBalancingController:
         phase_issues = self.analyzer.detect_voltage_issues(phase_stats)
         power_issues = self.analyzer.detect_power_issues(phase_stats)
         
+        # Debug: Print current phase loads
+        print(f"\n=== PHASE BALANCING CYCLE ===")
+        print(f"Mode: {mode}, Imbalance: {imbalance:.2f} kW")
+        for ps in phase_stats:
+            print(f"  {ps.phase}: {ps.total_power_kw:.2f} kW ({ps.house_count} houses)")
+        
         # Early health check
         if (not phase_issues) and (not power_issues) and (imbalance < MIN_IMBALANCE_KW):
             # System healthy — avoid recommending anything
+            print(f"System healthy - no action needed (imbalance {imbalance:.2f} < {MIN_IMBALANCE_KW})")
             return {
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "mode": mode,
@@ -94,39 +101,83 @@ class PhaseBalancingController:
         
         # Choose appropriate balancer
         if mode == "EXPORT":
+            print("Using EXPORT mode balancer")
             recommendation = self.morning_balancer.find_best_switch()
         else:
+            print("Using CONSUME mode balancer")
             recommendation = self.night_balancer.find_best_switch()
+        
+        if recommendation:
+            print(f"Balancer recommends: {recommendation.house_id} from {recommendation.from_phase} to {recommendation.to_phase} (improvement: {recommendation.improved_kw:.2f} kW)")
+        else:
+            print("Balancer returned no recommendation")
+        
+        if recommendation:
+            print(f"Balancer recommends: {recommendation.house_id} from {recommendation.from_phase} to {recommendation.to_phase} (improvement: {recommendation.improved_kw:.2f} kW)")
+        else:
+            print("Balancer returned no recommendation")
         
         # Validate recommendation (only if one was returned from balancer)
         if recommendation:
             house = self.registry.houses.get(recommendation.house_id)
             if house is None:
                 # House doesn't exist in registry (shouldn't happen, but safety check)
+                print(f"REJECTED: House {recommendation.house_id} not found in registry")
                 recommendation = None
             else:
                 # Check 1: has house been recently switched? (MIN_SWITCH_GAP_MIN enforcement)
                 try:
-                    if minutes_since(house.last_changed) < MIN_SWITCH_GAP_MIN:
+                    mins_since_switch = minutes_since(house.last_changed)
+                    if mins_since_switch < MIN_SWITCH_GAP_MIN:
+                        print(f"REJECTED: House {recommendation.house_id} switched {mins_since_switch:.2f} min ago (cooldown: {MIN_SWITCH_GAP_MIN} min)")
                         recommendation = None  # Skip: recently switched
                 except (AttributeError, TypeError):
-                    recommendation = None  # Skip: missing last_changed attribute
+                    # Missing last_changed - allow switch (house never switched before)
+                    print(f"House {recommendation.house_id} has no switch history - allowing")
+                    pass
                 
-                # Check: is improvement significant enough?
-                if recommendation and recommendation.improved_kw <= 0:
-                    recommendation = None
-                
-                # Check: is the house a strong exporter/importer or is imbalance critical?
+                # Check 2: Validate improvement
+                # IMPORTANT: Allow negative improvement for conflict resolution moves
                 if recommendation:
-                    try:
-                        last_read = house.last_reading
-                        p = last_read.power_kw if last_read else 0.0
-                        strong_threshold = abs(p) >= max(HIGH_EXPORT_THRESHOLD, HIGH_IMPORT_THRESHOLD)
-                        critical_imbalance = imbalance >= CRITICAL_IMBALANCE_KW
-                        if not strong_threshold and not critical_imbalance:
-                            recommendation = None  # skip small exporters/importers unless critical
-                    except Exception:
-                        recommendation = None  # missing reading data
+                    # Allow conflict resolution moves even with negative improvement
+                    is_conflict_resolution = "CONFLICT" in recommendation.reason.upper()
+                    
+                    if not is_conflict_resolution:
+                        # For normal balancing, require positive improvement
+                        if recommendation.improved_kw <= 0:
+                            print(f"REJECTED: Non-positive improvement ({recommendation.improved_kw:.2f} kW)")
+                            recommendation = None
+                        # Also check power thresholds for normal moves
+                        elif recommendation.improved_kw > 0:
+                            try:
+                                last_read = house.last_reading
+                                p = last_read.power_kw if last_read else 0.0
+                                
+                                # Be more lenient: allow switch if ANY of these conditions are true:
+                                # 1. House has significant power (>= 0.4 kW)
+                                # 2. Imbalance is high (>= 0.3 kW) 
+                                # 3. Improvement is substantial (>= 0.3 kW)
+                                strong_house = abs(p) >= max(HIGH_EXPORT_THRESHOLD, HIGH_IMPORT_THRESHOLD)
+                                high_imbalance = imbalance >= HIGH_IMBALANCE_KW  # 0.3 kW (more lenient)
+                                good_improvement = recommendation.improved_kw >= 0.3
+                                
+                                print(f"Validation: power={abs(p):.2f}kW, imbalance={imbalance:.2f}kW, improvement={recommendation.improved_kw:.2f}kW")
+                                print(f"  strong_house={strong_house}, high_imbalance={high_imbalance}, good_improvement={good_improvement}")
+                                
+                                if not (strong_house or high_imbalance or good_improvement):
+                                    print(f"REJECTED: House too small and improvement insufficient")
+                                    recommendation = None
+                                else:
+                                    print(f"APPROVED: Validation passed")
+                            except Exception as e:
+                                # Missing reading data - still allow if improvement is good
+                                if recommendation.improved_kw < 0.2:
+                                    print(f"REJECTED: Missing reading and improvement < 0.2 kW")
+                                    recommendation = None
+                                else:
+                                    print(f"APPROVED: Good improvement despite missing reading")
+                    else:
+                        print(f"APPROVED: Conflict resolution move (bypasses normal checks)")
         
         # Build status report
         status = {

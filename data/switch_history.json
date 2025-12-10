@@ -33,5 +33,19 @@
     "from_phase": "L3",
     "to_phase": "L2",
     "reason": "Consume mode: move 0.20kW from L3 to L2 (net \u0394=0.20kW, internal \u0394=0.00kW, score=0.20)"
+  },
+  {
+    "timestamp": "2025-12-10T09:07:41.680542+00:00",
+    "house_id": "B2",
+    "from_phase": "L2",
+    "to_phase": "L3",
+    "reason": "Consume: move 2.40kW from L2 to L3 (\u0394=3.20kW)"
+  },
+  {
+    "timestamp": "2025-12-10T09:08:21.438421+00:00",
+    "house_id": "V2",
+    "from_phase": "L2",
+    "to_phase": "L1",
+    "reason": "Consume: move 1.50kW from L2 to L1 (\u0394=3.00kW)"
   }
 ]

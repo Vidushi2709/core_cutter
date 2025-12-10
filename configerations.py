@@ -1,11 +1,11 @@
 from pathlib import Path
 
 # Timing / gating
-MIN_SWITCH_GAP_MIN = 0.1
+MIN_SWITCH_GAP_MIN = 0.5  # Increased from 0.1 to prevent rapid oscillation
 AUTO_BALANCE_INTERVAL = 60
 READING_EXPIRY_SECONDS = 3600
 
-MIN_IMBALANCE_KW = 0.8 
+MIN_IMBALANCE_KW = 0.5  # Reduced from 0.8 to be more responsive 
 # Phases
 PHASES = ["L1", "L2", "L3"]
 
