@@ -9,7 +9,8 @@ from consumption import consumption_logic
 
 # Helper to compute minutes since a timestamp
 def minutes_since(ts: datetime) -> float:
-    return (datetime.now() - ts).total_seconds() / 60.0
+    # Use UTC-aware now to avoid naive/aware subtraction errors
+    return (datetime.now(timezone.utc) - ts).total_seconds() / 60.0
 
 class PhaseBalancingController:
     """Main controller orchestrating all logic"""

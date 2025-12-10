@@ -27,7 +27,12 @@ from configerations import (
     HISTORY_DB,
     HIGH_EXPORT_THRESHOLD,
     HIGH_IMPORT_THRESHOLD,
-    PHASE_OVERLOAD_THRESHOLD
+    PHASE_OVERLOAD_THRESHOLD,
+    EWMA_ALPHA,
+    RESET_STATE_ON_START,
+    RESET_TELEMETRY_ON_START,
+    RESET_HOUSES_ON_START,
+    RESET_SWITCH_HISTORY_ON_START,
 )
 
 @dataclass
@@ -66,6 +71,7 @@ class HouseState:
     phase: str
     last_changed: datetime
     last_reading: Optional[ReadingOfEachHouse]
+    smoothed_power_kw: Optional[float] = None
 
     def to_dict(self) -> Dict:
         return {
@@ -73,6 +79,7 @@ class HouseState:
             "phase": self.phase,
             "last_changed": self.last_changed.isoformat(),
             "last_reading": self.last_reading.to_dict() if self.last_reading else None,
+            "smoothed_power_kw": self.smoothed_power_kw,
         }
     @classmethod
     def from_dict(cls, data: Dict) -> 'HouseState':
@@ -85,6 +92,7 @@ class HouseState:
             phase=data["phase"],
             last_changed=lc,
             last_reading=ReadingOfEachHouse.from_dict(data["last_reading"]) if data["last_reading"] else None,
+            smoothed_power_kw=data.get("smoothed_power_kw"),
         )
     
 # Store data locally
@@ -120,12 +128,11 @@ class DataStorage:
         return {hid: HouseState.from_dict(hdata) for hid, hdata in data.items()}
     
     def append_telemetry(self, house_id: str, reading: ReadingOfEachHouse, phase: str):
+        """Append telemetry reading to history (preserves all readings for dashboard analytics)."""
         path = Path(TELEMETRY_DB)
         data = self._load_json(path, default=[])
 
-        # Replace any existing entry for this house to keep only the latest reading per house.
-        data = [entry for entry in data if entry.get("house_id") != house_id]
-
+        # Append new reading - NEVER remove old entries (preserves full history)
         data.append({
             "house_id": house_id,
             "phase": phase,
@@ -136,6 +143,16 @@ class DataStorage:
         })
 
         self._write_json(path, data)
+
+    def clear_telemetry(self):
+        """Truncate telemetry history (used when resetting on startup)."""
+        path = Path(TELEMETRY_DB)
+        self._write_json(path, [])
+
+    def clear_switch_history(self):
+        """Truncate switch history log (used when resetting on startup)."""
+        path = Path(HISTORY_DB)
+        self._write_json(path, [])
         
     def append_switch_history(self, switch_record: Dict):
         path = Path(HISTORY_DB)
@@ -213,6 +230,22 @@ class HouseRegistry:
         self.houses: Dict[str, HouseState] = (
             self.storage.load_houses() if self.storage else {}
         )
+        # On startup: clear readings/smoothed power but keep house registrations and phase assignments.
+        # This ensures houses remember which phase they're on, but balancing starts fresh.
+        if self.storage and RESET_STATE_ON_START:
+            self._reset_state_on_start()
+        elif self.storage and RESET_HOUSES_ON_START:
+            self._reset_houses_on_start()
+        # Recover latest readings from telemetry log to restore in-memory state
+        if self.storage and not (RESET_STATE_ON_START or RESET_HOUSES_ON_START):
+            self._recover_latest_readings_from_telemetry()
+
+    @staticmethod
+    def _ewma(previous: Optional[float], new_value: float) -> float:
+        """Compute EWMA for smoothing house power readings."""
+        if previous is None:
+            return new_value
+        return EWMA_ALPHA * new_value + (1 - EWMA_ALPHA) * previous
         
     def add_house(self, house_id: str, initial_phase: str):
         # initialize last_changed far in the past so newly-registered houses
@@ -227,6 +260,84 @@ class HouseRegistry:
             # Persist the newly-registered house so it is available
             # after server restarts.
             self.storage.save_houses(self.houses)
+
+    def _reset_state_on_start(self):
+        """Clear cached readings and optionally telemetry when resetting on startup."""
+        for house in self.houses.values():
+            house.last_reading = None
+            house.smoothed_power_kw = None
+        if self.storage:
+            self.storage.save_houses(self.houses)
+            if RESET_TELEMETRY_ON_START:
+                try:
+                    self.storage.clear_telemetry()
+                except Exception as exc:
+                    print(f"Warning: failed to clear telemetry on startup: {exc}")
+
+    def _reset_houses_on_start(self):
+        """Clear all house registrations and logs when configured to start fresh."""
+        self.houses = {}
+        if not self.storage:
+            return
+        try:
+            self.storage.save_houses(self.houses)
+            if RESET_TELEMETRY_ON_START:
+                self.storage.clear_telemetry()
+            if RESET_SWITCH_HISTORY_ON_START:
+                self.storage.clear_switch_history()
+        except Exception as exc:
+            print(f"Warning: failed to fully reset houses on startup: {exc}")
+    
+    def _recover_latest_readings_from_telemetry(self):
+        """Recover latest readings from telemetry.jsonl on startup.
+        
+        This ensures in-memory state is restored after server restart,
+        so analytics and balancing work even if telemetry arrived but
+        server crashed before persisting to houses.json.
+        """
+        from pathlib import Path
+        
+        telemetry_path = Path(TELEMETRY_DB)
+        if not telemetry_path.exists():
+            return
+        
+        # Read telemetry.jsonl line by line to find latest reading per house
+        latest_per_house = {}  # house_id -> (timestamp, reading)
+        
+        try:
+            with open(telemetry_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    try:
+                        entry = json.loads(line)
+                        house_id = entry.get("house_id")
+                        if not house_id:
+                            continue
+                        
+                        ts = datetime.fromisoformat(entry["timestamp"])
+                        if ts.tzinfo is None:
+                            ts = ts.replace(tzinfo=timezone.utc)
+                        
+                        # Keep only if this is newer than what we have
+                        if house_id not in latest_per_house or ts > latest_per_house[house_id][0]:
+                            reading = ReadingOfEachHouse(
+                                timestamp=ts,
+                                voltage=entry.get("voltage", 0.0),
+                                current=entry.get("current", 0.0),
+                                power_kw=entry.get("power_kw", 0.0)
+                            )
+                            latest_per_house[house_id] = (ts, reading)
+                    except (json.JSONDecodeError, KeyError, ValueError):
+                        continue
+        except Exception as e:
+            print(f"Warning: Failed to recover telemetry on startup: {e}")
+            return
+        
+        # Restore readings to in-memory state
+        for house_id, (_, reading) in latest_per_house.items():
+            if house_id in self.houses:
+                self.houses[house_id].last_reading = reading
+                # Initialize smoothed power with the recovered reading
+                self.houses[house_id].smoothed_power_kw = reading.power_kw
     
     # Note: `power_kw` sign convention used across the codebase:
     #  - positive => consumption/import
@@ -244,6 +355,10 @@ class HouseRegistry:
         
         # Update in-memory state
         self.houses[house_id].last_reading = reading
+        self.houses[house_id].smoothed_power_kw = self._ewma(
+            self.houses[house_id].smoothed_power_kw,
+            power_kw
+        )
         
         # Persist both to the telemetry log and to the houses DB so that the
         # latest reading is reloaded after a restart.
@@ -286,26 +401,33 @@ class PhaseRegistry:
         self.registry = registry
         self.storage = storage
 
+    def _effective_power_kw(self, house: HouseState, now: datetime) -> Optional[float]:
+        """Return smoothed power if available, respecting reading expiry."""
+        reading = house.last_reading
+        if reading is None:
+            return None
+        if READING_EXPIRY_SECONDS > 0:
+            if (now - reading.timestamp).total_seconds() > READING_EXPIRY_SECONDS:
+                return None
+        if house.smoothed_power_kw is not None:
+            return house.smoothed_power_kw
+        return reading.power_kw
+
     def get_phase_stats(self) -> List[PhaseStats]:
         """Current stats for all phases."""
         stats = {p: {"power": 0.0, "voltages": [], "count": 0} for p in PHASES}
         now = datetime.now(timezone.utc)
 
         for house in self.registry.houses.values():
+            effective_power = self._effective_power_kw(house, now)
             r = house.last_reading
-            if r is None:
+            if effective_power is None or r is None:
                 continue
-            # Skip very old readings only if an expiry window is configured.
-            # If READING_EXPIRY_SECONDS <= 0, we treat readings as non-expiring.
-            if READING_EXPIRY_SECONDS > 0:
-                if (now - r.timestamp).total_seconds() > READING_EXPIRY_SECONDS:
-                    # we do the above to make sure we only take into account recent readings
-                    continue 
-            
+
             phase = house.phase
             # accumulate signed power: negative reduces phase total (export),
             # positive increases it (consumption).
-            stats[phase]["power"] += r.power_kw
+            stats[phase]["power"] += effective_power
             stats[phase]["voltages"].append(r.voltage)
             stats[phase]["count"] += 1
 
@@ -328,28 +450,108 @@ class PhaseRegistry:
         # phase and the most-generating phase.
         powers = [ps.total_power_kw for ps in phase_stat]
         return max(powers) - min(powers)
+    
+    def get_phase_internal_imbalance(self, phase: str) -> Dict[str, float]:
+        """Detect imbalance WITHIN a single phase (exporters vs importers conflicting).
+        
+        Returns:
+            {
+                'export_power': total export magnitude,
+                'import_power': total import magnitude,
+                'internal_imbalance': abs difference (conflict magnitude),
+                'has_conflict': True if both exporters and importers exist
+            }
+        """
+        now = datetime.now(timezone.utc)
+        export_power = 0.0
+        import_power = 0.0
+        
+        for house in self.registry.houses.values():
+            if house.phase != phase:
+                continue
+
+            effective_power = self._effective_power_kw(house, now)
+            if effective_power is None:
+                continue
+
+            # Accumulate export and import separately
+            if effective_power < 0:
+                export_power += abs(effective_power)  # Magnitude of export
+            else:
+                import_power += effective_power  # Magnitude of import
+        
+        # Internal imbalance = how much conflict exists
+        internal_imbalance = abs(export_power - import_power)
+        has_conflict = export_power > 0.1 and import_power > 0.1  # Both exporters AND importers
+        
+        return {
+            'export_power': export_power,
+            'import_power': import_power,
+            'internal_imbalance': internal_imbalance,
+            'has_conflict': has_conflict
+        }
+    
+    def detect_conflicted_phases(self) -> List[str]:
+        """Find phases with internal exporter/importer conflicts.
+        
+        Returns list of phase names that have both exporters and importers,
+        prioritized by internal imbalance magnitude.
+        """
+        conflicted = []
+        for phase in PHASES:
+            internal = self.get_phase_internal_imbalance(phase)
+            if internal['has_conflict']:
+                conflicted.append((phase, internal['internal_imbalance']))
+        
+        # Sort by imbalance (highest first)
+        conflicted.sort(key=lambda x: x[1], reverse=True)
+        return [phase for phase, _ in conflicted]
+    
+    def detect_phase_issues_detailed(self) -> Dict[str, Dict[str, Any]]:
+        """Detailed per-phase analysis including internal conflicts.
+        
+        Returns:
+            {
+                'L1': {'net_power': -5.0, 'export_power': 5.0, 'import_power': 0.0, 'internal_imbalance': 5.0, 'has_conflict': False},
+                'L2': {'net_power': 0.5, 'export_power': 0.0, 'import_power': 0.5, 'internal_imbalance': 0.5, 'has_conflict': False},
+                ...
+            }
+        """
+        phase_stats = self.get_phase_stats()
+        issues = {}
+        
+        for phase in PHASES:
+            phase_power = next((ps.total_power_kw for ps in phase_stats if ps.phase == phase), 0.0)
+            internal = self.get_phase_internal_imbalance(phase)
+            
+            issues[phase] = {
+                'net_power': phase_power,
+                'export_power': internal['export_power'],
+                'import_power': internal['import_power'],
+                'internal_imbalance': internal['internal_imbalance'],
+                'has_conflict': internal['has_conflict']
+            }
+        
+        return issues
 
     def detect_mode(self, phase_stat: List[PhaseStats]) -> str:
-        # Mode is derived from the sign of current instead of power to be
-        # resilient to noisy power calculations. Negative current means export.
+        # Mode is derived from the sign of power (smoothed when available).
+        # Negative power means export, positive means consume.
         now = datetime.now(timezone.utc)
-        export_current = 0.0
-        import_current = 0.0
+        export_power = 0.0
+        import_power = 0.0
 
         for house in self.registry.houses.values():
-            reading = house.last_reading
-            if reading is None:
+            effective_power = self._effective_power_kw(house, now)
+            if effective_power is None:
                 continue
-            if READING_EXPIRY_SECONDS > 0:
-                if (now - reading.timestamp).total_seconds() > READING_EXPIRY_SECONDS:
-                    continue
 
-            if reading.current < 0:
-                export_current += -reading.current  # accumulate magnitude of exports
+            if effective_power < 0:
+                export_power += abs(effective_power)  # accumulate magnitude of exports
             else:
-                import_current += reading.current
+                import_power += effective_power  # accumulate magnitude of imports
 
-        if export_current > CURRENT_MODE_THRESHOLD and export_current >= import_current:
+        if export_power > CURRENT_MODE_THRESHOLD and export_power >= import_power:
             return "EXPORT"
         return "CONSUME"
     

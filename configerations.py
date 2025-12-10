@@ -13,6 +13,7 @@ PHASES = ["L1", "L2", "L3"]
 SWITCH_IMPROVEMENT_KW = 0.1  # Smaller improvement needed because loads are tiny
 EXPORT_MODE_THRESHOLD = 0.2  # Lower threshold for light systems
 CURRENT_MODE_THRESHOLD = 0.5  # Amps; exports above this imply export mode
+EWMA_ALPHA = 0.2  # Smoothing factor for EWMA of house power
 
 # Voltage thresholds for 100–200V system
 OVERVOLTAGE_THRESHOLD = 250.0
@@ -30,6 +31,12 @@ PHASE_OVERLOAD_THRESHOLD = 1.0   # 1kW safe limit
 # Imbalance thresholds
 HIGH_IMBALANCE_KW = 0.3         # 300W
 CRITICAL_IMBALANCE_KW = 0.6     # 600W
+
+# Startup behavior
+RESET_STATE_ON_START = True          # If True, clear last readings/smoothed power on startup
+RESET_TELEMETRY_ON_START = True      # If True, truncate telemetry log on startup
+RESET_HOUSES_ON_START = False        # If True, clear all registered houses/phases on startup (keep house registrations to preserve phase assignments)
+RESET_SWITCH_HISTORY_ON_START = False # If True, clear switch history on startup
 
 # Data storage
 DATA_DIR = Path("./data")

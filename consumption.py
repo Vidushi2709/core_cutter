@@ -22,106 +22,88 @@ class consumption_logic:
         self.registry = registry
         self.analyzer = analyzer
     
-    def get_candidate_house(self) -> List[Dict]:
-        '''
-        Get houses that can be switched at night.
-        Priority to largest consumers (positive `power_kw` meaning import).
+    def find_best_switch(self) -> Optional[RecommendedSwitch]:
+        """Find the best house to switch to reduce consumption imbalance.
         
-        NOTE: MIN_SWITCH_GAP_MIN validation is done in main.py run_cycle(),
-        not here, to enforce single-switch-per-run logic consistently.
-        '''
-        now = datetime.now(timezone.utc)
-        candidates = []
-        for house in self.registry.houses.values():
-
-            if not hasattr(house, "last_changed") or not hasattr(house, "last_reading"):
-                continue
-
-            r = house.last_reading
-            if not r:
-                continue
-            if (now - r.timestamp).total_seconds() > READING_EXPIRY_SECONDS:
-                continue
-
-            # At night we care about heavy consumers (positive power_kw).
-            if r.power_kw > 0.1:  # 0.1 kW threshold to avoid noise
-                candidates.append({
-                    "house_id": house.house_id,
-                    "current_phase": house.phase,
-                    "power_kw": r.power_kw,
-                    "voltage": r.voltage,
-                })
-
-        # sort by magnitude of consumption (largest loads first)
-        candidates.sort(key=lambda x: abs(x["power_kw"]), reverse=True)
-        return candidates
-    
-    def find_best_switch(self)-> Optional[RecommendedSwitch]:
-        """Find the best house to switch at night.
-
-        Same algorithm as morning, but candidates are consumers. When `verbose`
-        is True, print a short trace of the simulated moves and chosen best move.
+        Strategy: candidates are heavy consumers; simulate moving each to other phases;
+        pick the move that maximizes net imbalance reduction.
         """
+        now = datetime.now(timezone.utc)
         phase_stats = self.analyzer.get_phase_stats()
         current_imbalance_kw = self.analyzer.get_imbalance(phase_stats)
 
         if current_imbalance_kw < max(MIN_IMBALANCE_KW, HIGH_IMBALANCE_KW):
             return None  # No significant imbalance to fix
 
-        # At night we care mainly about low voltage (heavy load).
-        # Only move houses OFF under-voltage phases, and TO phases that are NOT under-voltage.
-        voltage_issues = self.analyzer.detect_voltage_issues(phase_stats)
-        under_voltage_phases = set(voltage_issues.get("UNDER_VOLTAGE", []))
+        # Collect houses with valid readings
+        house_powers: List[Dict] = []
+        for house in self.registry.houses.values():
+            r = house.last_reading
+            if not r:
+                continue
+            if (now - r.timestamp).total_seconds() > READING_EXPIRY_SECONDS:
+                continue
 
-        phase_power = {ps.phase: ps.total_power_kw for ps in phase_stats}
-        candidates = self.get_candidate_house()
-        best_house: Optional[RecommendedSwitch] = None
-        for c in candidates:
-            house_id = c["house_id"]
-            current_phase = c["current_phase"]
-            power_kw = c["power_kw"]
+            power_kw = house.smoothed_power_kw if house.smoothed_power_kw is not None else r.power_kw
+            house_powers.append({
+                "house_id": house.house_id,
+                "phase": house.phase,
+                "power_kw": power_kw,
+            })
 
-            # Sign convention: power_kw > 0 means consuming (import).
-            # The candidates list filters for power_kw > 0.1, so power_kw should always be positive here.
-            assert isinstance(power_kw, (int, float)), f"power_kw must be numeric, got {type(power_kw)}"
-            assert power_kw > 0, f"Expected consumer (power_kw > 0), got power_kw={power_kw} for house {house_id}"
+        # Filter candidates: significant consumers (positive power_kw > 0.1)
+        candidates = [hp for hp in house_powers if hp["power_kw"] > 0.1]
+        candidates.sort(key=lambda x: abs(x["power_kw"]), reverse=True)
+
+        if not candidates:
+            return None
+
+        # Compute baseline net power per phase
+        baseline_net = {p: 0.0 for p in PHASES}
+        for hp in house_powers:
+            baseline_net[hp["phase"]] += hp["power_kw"]
+
+        # Hysteresis threshold
+        hysteresis_threshold = max(SWITCH_IMPROVEMENT_KW, 0.05 * current_imbalance_kw)
+
+        best: Optional[RecommendedSwitch] = None
+        best_improvement = 0.0
+
+        # Try each candidate move to each target phase
+        for candidate in candidates:
+            house_id = candidate["house_id"]
+            source_phase = candidate["phase"]
+            power_kw = candidate["power_kw"]
+
+            if power_kw < HIGH_IMPORT_THRESHOLD and current_imbalance_kw < CRITICAL_IMBALANCE_KW:
+                continue
 
             for target_phase in PHASES:
-                if target_phase == current_phase:
-                    continue
-                
-                if power_kw < HIGH_IMPORT_THRESHOLD and current_imbalance_kw < CRITICAL_IMBALANCE_KW:
-                    continue
-                
-                # Simulate the move by adjusting phase totals.
-                # When moving consumer from current_phase to target_phase:
-                #   - Remove power from current_phase: new_phase_power[current_phase] -= power_kw (power_kw is positive, so this decreases)
-                #   - Add power to target_phase: new_phase_power[target_phase] += power_kw (power_kw is positive, so this increases)
-                new_phase_power = phase_power.copy()
-                new_phase_power[current_phase] -= power_kw
-                new_phase_power[target_phase] += power_kw
-
-                new_imbalance_kw = max(new_phase_power.values()) - min(new_phase_power.values())
-                improvement_kw = current_imbalance_kw - new_imbalance_kw
-
-                if improvement_kw <=0:
-                    continue  # No improvement
-                
-                # Hysteresis threshold: require minimum improvement to avoid oscillation.
-                # Use the larger of SWITCH_IMPROVEMENT_KW or 5% of current imbalance.
-                # This conservative approach blocks tiny marginal switches that cause oscillation.
-                hysteresis_threshold = max(SWITCH_IMPROVEMENT_KW, 0.05 * current_imbalance_kw)
-                if improvement_kw < hysteresis_threshold:
+                if target_phase == source_phase:
                     continue
 
-                if (best_house is None) or (improvement_kw > best_house.improved_kw):
-                    best_house = RecommendedSwitch(
+                # Simulate move
+                new_net = baseline_net.copy()
+                new_net[source_phase] -= power_kw
+                new_net[target_phase] += power_kw
+
+                new_imbalance = max(new_net.values()) - min(new_net.values())
+                improvement = current_imbalance_kw - new_imbalance
+
+                if improvement <= 0:
+                    continue
+                if improvement < hysteresis_threshold:
+                    continue
+
+                if improvement > best_improvement:
+                    best_improvement = improvement
+                    best = RecommendedSwitch(
                         house_id=house_id,
-                        from_phase=current_phase,
+                        from_phase=source_phase,
                         to_phase=target_phase,
-                        improved_kw=improvement_kw,
-                        new_imbalance_kw=new_imbalance_kw,
-                        reason=f"Consume mode: Moving {power_kw:.2f}kW from {current_phase} to {target_phase}",
-                        )
+                        improved_kw=improvement,
+                        new_imbalance_kw=new_imbalance,
+                        reason=f"Consume: move {power_kw:.2f}kW from {source_phase} to {target_phase} (Δ={improvement:.2f}kW)",
+                    )
 
-        return best_house
+        return best
