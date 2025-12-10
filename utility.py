@@ -194,8 +194,9 @@ class DataStorage:
         records = self._load_json(path, default=[])
         if not isinstance(records, list):
             return []
-        # Return most recent `limit` entries (last N items in the array)
-        return records[-limit:] if len(records) > limit else records
+        # Return most recent `limit` entries in reverse order (newest first)
+        recent = records[-limit:] if len(records) > limit else records
+        return list(reversed(recent))
 
 @dataclass
 class PhaseStats:

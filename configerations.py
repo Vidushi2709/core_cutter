@@ -1,7 +1,7 @@
 from pathlib import Path
 
 # Timing / gating
-MIN_SWITCH_GAP_MIN = 0.5  # Increased from 0.1 to prevent rapid oscillation
+MIN_SWITCH_GAP_MIN = 0.1  # 6 seconds - fast enough for critical imbalances, slow enough to prevent oscillation
 AUTO_BALANCE_INTERVAL = 60
 READING_EXPIRY_SECONDS = 3600
 
@@ -29,7 +29,7 @@ HIGH_IMPORT_THRESHOLD = 0.4      # 400W
 PHASE_OVERLOAD_THRESHOLD = 1.0   # 1kW safe limit
 
 # Imbalance thresholds
-HIGH_IMBALANCE_KW = 0.3         # 300W
+HIGH_IMBALANCE_KW = 0.15         # 150W
 CRITICAL_IMBALANCE_KW = 0.6     # 600W
 
 # Startup behavior

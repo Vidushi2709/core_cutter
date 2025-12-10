@@ -77,8 +77,11 @@ class consumption_logic:
 
         print(f"  [CONSUME] Baseline phase loads: L1={baseline_net['L1']:.2f}, L2={baseline_net['L2']:.2f}, L3={baseline_net['L3']:.2f}")
         
-        # More lenient hysteresis threshold
-        hysteresis_threshold = max(SWITCH_IMPROVEMENT_KW, 0.02 * current_imbalance_kw)
+        # Aggressive hysteresis for critical imbalances, more lenient otherwise
+        if current_imbalance_kw >= CRITICAL_IMBALANCE_KW:
+            hysteresis_threshold = 0.05  # Very low for critical situations
+        else:
+            hysteresis_threshold = max(SWITCH_IMPROVEMENT_KW, 0.02 * current_imbalance_kw)
         print(f"  [CONSUME] Hysteresis threshold: {hysteresis_threshold:.3f} kW")
 
         best: Optional[RecommendedSwitch] = None
@@ -90,13 +93,14 @@ class consumption_logic:
             source_phase = candidate["phase"]
             power_kw = candidate["power_kw"]
 
-            # Relax power threshold - allow smaller houses to move if imbalance is moderate
+            # Check if house is too small - but allow ALL houses if imbalance is critical
+            is_small_house = power_kw < HIGH_IMPORT_THRESHOLD
             skip_small_house = (
-                power_kw < HIGH_IMPORT_THRESHOLD and 
-                current_imbalance_kw < HIGH_IMBALANCE_KW  # Use HIGH not CRITICAL
+                is_small_house and 
+                current_imbalance_kw < CRITICAL_IMBALANCE_KW  # Only skip small houses if NOT critical
             )
             if skip_small_house:
-                print(f"    [CONSUME] Skipping {house_id} ({power_kw:.2f}kW < {HIGH_IMPORT_THRESHOLD} AND {current_imbalance_kw:.2f}kW < {HIGH_IMBALANCE_KW})")
+                print(f"    [CONSUME] Skipping {house_id} ({power_kw:.2f}kW - too small for non-critical imbalance)")
                 continue
 
             print(f"    [CONSUME] Evaluating {house_id} ({power_kw:.2f}kW from {source_phase})")

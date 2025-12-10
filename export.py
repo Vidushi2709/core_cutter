@@ -45,8 +45,8 @@ class export_logic:
 
             # Morning: target large exporters (negative power_kw)
             # Negative `power_kw` indicates exporting (generation).
-            # Select significant exporters only (avoid small noisy values)
-            if r.power_kw < -0.1:  # 0.1 kW threshold to avoid noise
+            # Select exporters (lowered threshold for better balancing)
+            if r.power_kw < -0.05:  # 0.05 kW threshold (lowered from 0.1)
                 candidates.append({
                     "house_id": house.house_id,
                     "current_phase": house.phase,
@@ -94,7 +94,7 @@ class export_logic:
                 # This breaks the internal conflict so normal balancing can work later
                 exporters_on_source = [
                     h for h in self.registry.houses.values()
-                    if h.phase == source_phase and h.last_reading and h.last_reading.power_kw < -0.1
+                    if h.phase == source_phase and h.last_reading and h.last_reading.power_kw < -0.05
                 ]
                 
                 if exporters_on_source:
@@ -183,7 +183,7 @@ class export_logic:
             power = c["power_kw"]
 
             # Sign convention: power < 0 means exporting (generation).
-            # The candidates list filters for power_kw < -0.1, so power should always be negative here.
+            # The candidates list filters for power_kw < -0.05, so power should always be negative here.
             assert isinstance(power, (int, float)), f"power must be numeric, got {type(power)}"
             assert power < 0, f"Expected exporter (power < 0), got power={power} for house {house_id}"
 
@@ -213,9 +213,11 @@ class export_logic:
                     continue
 
                 # Hysteresis threshold: require minimum improvement to avoid oscillation.
-                # Use the larger of SWITCH_IMPROVEMENT_KW or 5% of current imbalance.
-                # This conservative approach blocks tiny marginal switches that cause oscillation.
-                hysteresis_threshold = max(SWITCH_IMPROVEMENT_KW, 0.05 * current_imbalance_kw)
+                # For critical imbalances, use aggressive threshold; otherwise be conservative.
+                if current_imbalance_kw >= CRITICAL_IMBALANCE_KW:
+                    hysteresis_threshold = 0.05  # Very low for critical situations
+                else:
+                    hysteresis_threshold = max(SWITCH_IMPROVEMENT_KW, 0.05 * current_imbalance_kw)
                 if improvement_kw < hysteresis_threshold:
                     continue
 

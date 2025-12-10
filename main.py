@@ -26,7 +26,7 @@ class PhaseBalancingController:
         self._mode_since: Optional[datetime] = None
         self._pending_mode: Optional[str] = None
         self._pending_since: Optional[datetime] = None
-        self.MODE_STABLE_SECONDS = 15
+        self.MODE_STABLE_SECONDS = 10  # Reduced from 15 for faster response
 
     def _stable_mode(self, detected_mode: str) -> str:
         now = datetime.now(timezone.utc)
@@ -153,18 +153,20 @@ class PhaseBalancingController:
                                 last_read = house.last_reading
                                 p = last_read.power_kw if last_read else 0.0
                                 
-                                # Be more lenient: allow switch if ANY of these conditions are true:
+                                # Relaxed validation: allow switch if ANY of these conditions are true:
                                 # 1. House has significant power (>= 0.4 kW)
                                 # 2. Imbalance is high (>= 0.3 kW) 
-                                # 3. Improvement is substantial (>= 0.3 kW)
+                                # 3. Improvement is reasonable (>= 0.1 kW) - LOWERED from 0.3
+                                # 4. Critical situation (>= 0.6 kW imbalance) - bypass all checks
                                 strong_house = abs(p) >= max(HIGH_EXPORT_THRESHOLD, HIGH_IMPORT_THRESHOLD)
-                                high_imbalance = imbalance >= HIGH_IMBALANCE_KW  # 0.3 kW (more lenient)
-                                good_improvement = recommendation.improved_kw >= 0.3
+                                high_imbalance = imbalance >= HIGH_IMBALANCE_KW  # 0.3 kW
+                                good_improvement = recommendation.improved_kw >= 0.1  # LOWERED from 0.3
+                                critical_situation = imbalance >= CRITICAL_IMBALANCE_KW  # 0.6 kW - override all checks
                                 
                                 print(f"Validation: power={abs(p):.2f}kW, imbalance={imbalance:.2f}kW, improvement={recommendation.improved_kw:.2f}kW")
-                                print(f"  strong_house={strong_house}, high_imbalance={high_imbalance}, good_improvement={good_improvement}")
+                                print(f"  strong_house={strong_house}, high_imbalance={high_imbalance}, good_improvement={good_improvement}, critical={critical_situation}")
                                 
-                                if not (strong_house or high_imbalance or good_improvement):
+                                if not (strong_house or high_imbalance or good_improvement or critical_situation):
                                     print(f"REJECTED: House too small and improvement insufficient")
                                     recommendation = None
                                 else:

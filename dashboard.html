@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase Balancing Controller Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: #12242e;
+            color: #f3e3ea;
+            overflow-x: hidden;
+        }
+
+        .header {
+            background: #12242e;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .header .live-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #e4a2b1;
+        }
+
+        .pulse {
+            width: 12px;
+            height: 12px;
+            background: #50afb6;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .container {
+            max-width: 1920px;
+            margin: 0 auto;
+            padding: 30px 40px;
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: #1c2e38;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+            border: 1px solid #324859;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+        }
+
+        .card-label {
+            font-size: 14px;
+            color: #fbe2a7;
+            margin-bottom: 15px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        .card-value {
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .card-subtitle {
+            font-size: 14px;
+            color: #e4a2b1;
+        }
+
+        .mode-consume { color: #50afb6; }
+        .mode-export { color: #c67b96; }
+        .imbalance-low { color: #50afb6; }
+        .imbalance-medium { color: #c67b96; }
+        .imbalance-high { color: #e35ea4; }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #24272b;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            transition: width 0.3s;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin: 30px 0 20px 0;
+        }
+
+        .phase-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .phase-card {
+            background: #1c2e38;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border: 1px solid #324859;
+        }
+
+        .phase-header {
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .phase-header.phase-r { background: #7f1d1d; }
+        .phase-header.phase-y { background: #713f12; }
+        .phase-header.phase-b { background: #1e3a8a; }
+
+        .phase-name {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .phase-name.phase-r { color: #fca5a5; }
+        .phase-name.phase-y { color: #fde047; }
+        .phase-name.phase-b { color: #93c5fd; }
+
+        .phase-body {
+            padding: 25px;
+        }
+
+        .phase-metric {
+            margin-bottom: 20px;
+        }
+
+        .phase-metric-label {
+            font-size: 14px;
+            color: #e4a2b1;
+            margin-bottom: 5px;
+        }
+
+        .phase-metric-value {
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-normal {
+            background: rgba(80, 175, 182, 0.2);
+            color: #50afb6;
+        }
+
+        .status-warning {
+            background: rgba(198, 123, 150, 0.2);
+            color: #c67b96;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 640px;
+            gap: 20px;
+        }
+
+        .house-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+            gap: 15px;
+        }
+        .house-card {
+            background: #1c2e38;
+            border-radius: 8px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            border: 1px solid #324859;
+        }
+
+        .house-card:hover {
+            background: #20333d;
+            transform: translateY(-2px);
+            border-color: #50afb6;
+        }
+
+        .house-id {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .house-phase-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .phase-badge-r {
+            background: #7f1d1d;
+            color: #fca5a5;
+        }
+
+        .phase-badge-y {
+            background: #713f12;
+            color: #fde047;
+        }
+
+        .phase-badge-b {
+            background: #1e3a8a;
+            color: #93c5fd;
+        }
+
+        .house-power {
+            font-size: 12px;
+            color: #e4a2b1;
+            display: inline-block;
+        }
+
+        .house-details {
+            font-size: 11px;
+            color: #e4a2b1;
+            margin-top: 8px;
+        }
+
+        .house-status {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .status-online { background: #50afb6; }
+        .status-warning { background: #c67b96; }
+        .status-offline { background: #e35ea4; }
+
+        .export-badge {
+            display: inline-block;
+            font-size: 10px;
+            color: #c67b96;
+            font-weight: 600;
+            margin-left: 5px;
+        }
+
+        .activity-panel {
+            background: #1c2e38;
+            border-radius: 12px;
+            padding: 25px;
+            height: fit-content;
+            border: 1px solid #324859;
+        }
+
+        .activity-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        .activity-item {
+            background: #24272b;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .activity-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .activity-time {
+            font-size: 12px;
+            color: #e4a2b1;
+        }
+
+        .activity-text {
+            font-size: 14px;
+            color: #f3e3ea;
+        }
+
+        .activity-reason {
+            margin-left: auto;
+            font-size: 11px;
+        }
+
+        .alert-card {
+            background: #1c2e38;
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 20px;
+            border: 1px solid #324859;
+        }
+
+        .alert-item {
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+
+        .alert-warning {
+            background: #24272b;
+            border-left: 4px solid #c67b96;
+        }
+        
+        .alert-critical {
+            background: #24272b;
+            border-left: 4px solid #e35ea4;
+        }
+
+        .alert-success {
+            background: #24272b;
+            border-left: 4px solid #50afb6;
+        }
+
+        .alert-title {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .alert-warning .alert-title { color: #c67b96; }
+        .alert-critical .alert-title { color: #e35ea4; }
+        .alert-success .alert-title { color: #50afb6; }
+
+        .alert-message {
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+
+        .alert-warning .alert-message { color: #e4a2b1; }
+        .alert-critical .alert-message { color: #e4a2b1; }
+        .alert-success .alert-message { color: #e4a2b1; }
+        
+        .alert-source {
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            margin-top: 8px;
+        }
+        
+        .alert-warning .alert-source { color: #fbe2a7; }
+        .alert-critical .alert-source { color: #fbe2a7; }
+        .alert-success .alert-source { color: #fbe2a7; }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 18px;
+            color: #94a3b8;
+        }
+
+        .error {
+            background: #7f1d1d;
+            color: #fca5a5;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>⚡ Phase Balancing Controller</h1>
+        <div class="live-badge">
+            <div class="pulse"></div>
+            <span>Live Dashboard</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <div id="error-message" style="display: none;" class="error"></div>
+        
+        <!-- Top Stats Row -->
+        <div class="stats-row">
+            <div class="card">
+                <div class="card-label">SYSTEM MODE</div>
+                <div id="system-mode" class="card-value">--</div>
+            </div>
+
+            <div class="card">
+                <div class="card-label">IMBALANCE</div>
+                <div id="imbalance-value" class="card-value">--</div>
+                <div class="progress-bar">
+                    <div id="imbalance-progress" class="progress-fill"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-label">TOTAL HOUSES</div>
+                <div id="total-houses" class="card-value">--</div>
+                <div class="card-subtitle">All Connected</div>
+            </div>
+
+            <div class="card">
+                <div class="card-label">SWITCHES TODAY</div>
+                <div id="switches-count" class="card-value">--</div>
+                <div id="last-switch" class="card-subtitle">--</div>
+            </div>
+        </div>
+
+        <!-- Phase Details -->
+        <div class="section-title">Phase Details</div>
+        <div class="phase-cards" id="phase-cards"></div>
+
+        <!-- Houses and Activity -->
+        <div class="two-column">
+            <div>
+                <div class="section-title">All Houses</div>
+                <div class="house-grid" id="house-grid"></div>
+            </div>
+
+            <div>
+                <div class="activity-panel">
+                    <div class="activity-title">Recent Switch Activity</div>
+                    <div id="activity-feed"></div>
+                </div>
+
+                <div class="alert-card">
+                    <div class="activity-title">System Alerts</div>
+                    <div id="alerts-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        
+        // Fetch and update dashboard data
+        async function fetchDashboardData() {
+            try {
+                // Fetch main status
+                const statusRes = await fetch(`${API_BASE}/analytics/status`);
+                if (!statusRes.ok) {
+                    throw new Error(`HTTP error! status: ${statusRes.status}`);
+                }
+                const status = await statusRes.json();
+                
+                console.log('Status data:', status); // Debug log
+                
+                // Check if we have valid data
+                if (!status || !status.phases || status.phases.length === 0) {
+                    showError('No data available. Please send telemetry data to register houses.');
+                    return;
+                }
+                
+                // Update top stats
+                updateTopStats(status);
+                
+                // Update phase cards
+                updatePhaseCards(status.phases);
+                
+                // Update houses
+                updateHouseGrid(status.phases);
+                
+                // Update alerts
+                updateAlerts(status);
+                
+                // Fetch switch history
+                const switchRes = await fetch(`${API_BASE}/analytics/switches?limit=4`);
+                const switches = await switchRes.json();
+                updateActivityFeed(switches.switches || []);
+                
+                // Hide error if everything loaded
+                document.getElementById('error-message').style.display = 'none';
+                
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                showError('Unable to connect to the server. Make sure your FastAPI backend is running on port 8000.');
+            }
+        }
+
+        function updateTopStats(status) {
+            // System Mode
+            const modeEl = document.getElementById('system-mode');
+            modeEl.textContent = status.mode;
+            modeEl.className = status.mode === 'CONSUME' ? 'card-value mode-consume' : 'card-value mode-export';
+            
+            // Imbalance
+            const imbalanceEl = document.getElementById('imbalance-value');
+            const imbalance = status.imbalance_kw;
+            imbalanceEl.textContent = `${imbalance.toFixed(1)} kW`;
+            
+            if (imbalance < 2) {
+                imbalanceEl.className = 'card-value imbalance-low';
+            } else if (imbalance < 5) {
+                imbalanceEl.className = 'card-value imbalance-medium';
+            } else {
+                imbalanceEl.className = 'card-value imbalance-high';
+            }
+            
+            // Progress bar
+            const progressEl = document.getElementById('imbalance-progress');
+            const progressPercent = Math.min((imbalance / 10) * 100, 100);
+            progressEl.style.width = `${progressPercent}%`;
+            progressEl.style.background = imbalance < 2 ? '#10b981' : imbalance < 5 ? '#f59e0b' : '#ef4444';
+            
+            // Total Houses
+            const totalHouses = status.phases.reduce((sum, phase) => sum + phase.house_count, 0);
+            document.getElementById('total-houses').textContent = totalHouses;
+        }
+
+        function updatePhaseCards(phases) {
+            const container = document.getElementById('phase-cards');
+            container.innerHTML = '';
+            
+            const phaseConfig = {
+                'R': { class: 'phase-r', color: '#ef4444' },
+                'Y': { class: 'phase-y', color: '#eab308' },
+                'B': { class: 'phase-b', color: '#3b82f6' }
+            };
+            
+            phases.forEach(phase => {
+                // Get config with fallback
+                const phaseName = phase.phase || 'R';
+                const config = phaseConfig[phaseName] || phaseConfig['R'];
+                const card = document.createElement('div');
+                card.className = 'phase-card';
+                card.innerHTML = `
+                    <div class="phase-header ${config.class}">
+                        <div class="phase-name ${config.class}">PHASE ${phaseName}</div>
+                        <div class="pulse" style="background: ${config.color}"></div>
+                    </div>
+                    <div class="phase-body">
+                        <div class="phase-metric">
+                            <div class="phase-metric-label">Total Power</div>
+                            <div class="phase-metric-value">${(phase.total_power_kw || 0).toFixed(1)} kW</div>
+                        </div>
+                        <div class="phase-metric">
+                            <div class="phase-metric-label">Avg Voltage</div>
+                            <div class="phase-metric-value">${(phase.avg_voltage || 0).toFixed(1)} V</div>
+                        </div>
+                        <div class="phase-metric">
+                            <div class="phase-metric-label">Houses</div>
+                            <div class="phase-metric-value">${phase.house_count || 0}</div>
+                        </div>
+                        <span class="status-badge status-normal">✓ Normal</span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function updateHouseGrid(phases) {
+            const container = document.getElementById('house-grid');
+            container.innerHTML = '';
+            
+            const allHouses = [];
+            phases.forEach(phase => {
+                phase.houses.forEach(house => {
+                    allHouses.push(house);
+                });
+            });
+            
+            allHouses.sort((a, b) => a.house_id.localeCompare(b.house_id));
+            
+            allHouses.forEach(house => {
+                const phaseBadgeClass = `phase-badge-${house.phase.toLowerCase()}`;
+                const isExport = house.current < 0;
+                
+                const card = document.createElement('div');
+                card.className = 'house-card';
+                card.innerHTML = `
+                    <div class="house-status status-online"></div>
+                    <div class="house-id">${house.house_id}</div>
+                    <div>
+                        <span class="house-phase-badge ${phaseBadgeClass}">${house.phase}</span>
+                        <span class="house-power">${house.power_kw.toFixed(2)} kW</span>
+                        ${isExport ? '<span class="export-badge">EXPORT</span>' : ''}
+                    </div>
+                    <div class="house-details">${house.voltage.toFixed(1)}V • ${house.current.toFixed(1)}A</div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function updateActivityFeed(switches) {
+            const container = document.getElementById('activity-feed');
+            container.innerHTML = '';
+            
+            if (switches.length === 0) {
+                container.innerHTML = '<div style="color: #64748b; text-align: center; padding: 20px;">No recent switches</div>';
+                return;
+            }
+            
+            const colors = ['#3b82f6', '#8b5cf6', '#f59e0b', '#10b981'];
+            
+            switches.forEach((sw, idx) => {
+                const timeAgo = getTimeAgo(sw.timestamp);
+                const item = document.createElement('div');
+                item.className = 'activity-item';
+                item.innerHTML = `
+                    <div class="activity-dot" style="background: ${colors[idx % colors.length]}"></div>
+                    <div style="flex: 1;">
+                        <div class="activity-time">${timeAgo}</div>
+                        <div class="activity-text">${sw.house_id}: ${sw.from_phase} → ${sw.to_phase}</div>
+                    </div>
+                    <div class="activity-reason">${sw.reason}</div>
+                `;
+                container.appendChild(item);
+            });
+            
+            // Update switches count
+            document.getElementById('switches-count').textContent = switches.length;
+            if (switches.length > 0) {
+                document.getElementById('last-switch').textContent = `Last: ${getTimeAgo(switches[0].timestamp)}`;
+            }
+        }
+
+        function updateAlerts(status) {
+            const container = document.getElementById('alerts-container');
+            container.innerHTML = '';
+            
+            let hasIssues = false;
+            
+            // Critical imbalance (>= 0.6 kW)
+            if (status.imbalance_kw >= 0.6) {
+                hasIssues = true;
+                const phasePowers = status.phases.map(p => `${p.phase}: ${p.total_power_kw.toFixed(2)} kW`).join(', ');
+                const alert = document.createElement('div');
+                alert.className = 'alert-item alert-critical';
+                alert.innerHTML = `
+                    <div class="alert-title">🚨 CRITICAL Phase Imbalance</div>
+                    <div class="alert-message">Imbalance: ${status.imbalance_kw.toFixed(2)} kW</div>
+                    <div class="alert-source">Source: ${phasePowers}</div>
+                `;
+                container.appendChild(alert);
+            }
+            // High imbalance (>= 0.3 kW)
+            else if (status.imbalance_kw >= 0.3) {
+                hasIssues = true;
+                const maxPhase = status.phases.reduce((max, p) => p.total_power_kw > max.total_power_kw ? p : max);
+                const minPhase = status.phases.reduce((min, p) => p.total_power_kw < min.total_power_kw ? p : min);
+                const alert = document.createElement('div');
+                alert.className = 'alert-item alert-warning';
+                alert.innerHTML = `
+                    <div class="alert-title">⚠ High Phase Imbalance</div>
+                    <div class="alert-message">Imbalance: ${status.imbalance_kw.toFixed(2)} kW</div>
+                    <div class="alert-source">Source: ${maxPhase.phase} (${maxPhase.total_power_kw.toFixed(2)} kW) vs ${minPhase.phase} (${minPhase.total_power_kw.toFixed(2)} kW)</div>
+                `;
+                container.appendChild(alert);
+            }
+            
+            // Voltage issues with specific phase details
+            if (status.phase_issues.OVER_VOLTAGE && status.phase_issues.OVER_VOLTAGE.length > 0) {
+                hasIssues = true;
+                status.phase_issues.OVER_VOLTAGE.forEach(phase => {
+                    const phaseData = status.phases.find(p => p.phase === phase);
+                    const alert = document.createElement('div');
+                    alert.className = 'alert-item alert-critical';
+                    alert.innerHTML = `
+                        <div class="alert-title">⚡ OVER VOLTAGE - ${phase}</div>
+                        <div class="alert-message">${phaseData.avg_voltage.toFixed(1)}V (threshold: 250V)</div>
+                        <div class="alert-source">Affected houses: ${phaseData.houses.map(h => h.house_id).join(', ')}</div>
+                    `;
+                    container.appendChild(alert);
+                });
+            }
+            
+            if (status.phase_issues.UNDER_VOLTAGE && status.phase_issues.UNDER_VOLTAGE.length > 0) {
+                hasIssues = true;
+                status.phase_issues.UNDER_VOLTAGE.forEach(phase => {
+                    const phaseData = status.phases.find(p => p.phase === phase);
+                    const alert = document.createElement('div');
+                    alert.className = 'alert-item alert-critical';
+                    alert.innerHTML = `
+                        <div class="alert-title">⚡ UNDER VOLTAGE - ${phase}</div>
+                        <div class="alert-message">${phaseData.avg_voltage.toFixed(1)}V (threshold: 200V)</div>
+                        <div class="alert-source">Affected houses: ${phaseData.houses.map(h => h.house_id).join(', ')}</div>
+                    `;
+                    container.appendChild(alert);
+                });
+            }
+            
+            // Power issues with specific details
+            if (status.power_issues.HIGH_EXPORT && status.power_issues.HIGH_EXPORT.length > 0) {
+                hasIssues = true;
+                status.power_issues.HIGH_EXPORT.forEach(phase => {
+                    const phaseData = status.phases.find(p => p.phase === phase);
+                    const exporters = phaseData.houses.filter(h => h.power_kw < 0);
+                    const totalExport = Math.abs(exporters.reduce((sum, h) => sum + h.power_kw, 0));
+                    const alert = document.createElement('div');
+                    alert.className = 'alert-item alert-warning';
+                    alert.innerHTML = `
+                        <div class="alert-title">☀️ High Export - ${phase}</div>
+                        <div class="alert-message">${totalExport.toFixed(2)} kW (threshold: 0.4 kW)</div>
+                        <div class="alert-source">Exporters: ${exporters.map(h => `${h.house_id} (${Math.abs(h.power_kw).toFixed(2)}kW)`).join(', ')}</div>
+                    `;
+                    container.appendChild(alert);
+                });
+            }
+            
+            if (status.power_issues.HIGH_IMPORT && status.power_issues.HIGH_IMPORT.length > 0) {
+                hasIssues = true;
+                status.power_issues.HIGH_IMPORT.forEach(phase => {
+                    const phaseData = status.phases.find(p => p.phase === phase);
+                    const importers = phaseData.houses.filter(h => h.power_kw > 0);
+                    const totalImport = importers.reduce((sum, h) => sum + h.power_kw, 0);
+                    const alert = document.createElement('div');
+                    alert.className = 'alert-item alert-warning';
+                    alert.innerHTML = `
+                        <div class="alert-title">🔌 High Import - ${phase}</div>
+                        <div class="alert-message">${totalImport.toFixed(2)} kW (threshold: 0.4 kW)</div>
+                        <div class="alert-source">Heavy consumers: ${importers.filter(h => h.power_kw > 0.3).map(h => `${h.house_id} (${h.power_kw.toFixed(2)}kW)`).join(', ') || 'Multiple small loads'}</div>
+                    `;
+                    container.appendChild(alert);
+                });
+            }
+            
+            if (status.power_issues.PHASE_OVERLOAD && status.power_issues.PHASE_OVERLOAD.length > 0) {
+                hasIssues = true;
+                status.power_issues.PHASE_OVERLOAD.forEach(phase => {
+                    const phaseData = status.phases.find(p => p.phase === phase);
+                    const alert = document.createElement('div');
+                    alert.className = 'alert-item alert-critical';
+                    alert.innerHTML = `
+                        <div class="alert-title"> PHASE OVERLOAD - ${phase}</div>
+                        <div class="alert-message">${phaseData.total_power_kw.toFixed(2)} kW (limit: 1.0 kW)</div>
+                        <div class="alert-source">Houses on ${phase}: ${phaseData.houses.map(h => `${h.house_id} (${h.power_kw.toFixed(2)}kW)`).join(', ')}</div>
+                    `;
+                    container.appendChild(alert);
+                });
+            }
+            
+            // Internal conflict detection (mixed export/import on same phase)
+            status.phases.forEach(phaseData => {
+                const hasExport = phaseData.houses.some(h => h.power_kw < 0);
+                const hasImport = phaseData.houses.some(h => h.power_kw > 0);
+                if (hasExport && hasImport) {
+                    hasIssues = true;
+                    const exporters = phaseData.houses.filter(h => h.power_kw < 0).map(h => h.house_id).join(', ');
+                    const importers = phaseData.houses.filter(h => h.power_kw > 0).map(h => h.house_id).join(', ');
+                    const alert = document.createElement('div');
+                    alert.className = 'alert-item alert-warning';
+                    alert.innerHTML = `
+                        <div class="alert-title">⚡ Internal Conflict - ${phaseData.phase}</div>
+                        <div class="alert-message">Mixed export/import on same phase reduces efficiency</div>
+                        <div class="alert-source">Exporters: ${exporters} | Importers: ${importers}</div>
+                    `;
+                    container.appendChild(alert);
+                }
+            });
+            
+            // All clear
+            if (!hasIssues) {
+                const alert = document.createElement('div');
+                alert.className = 'alert-item alert-success';
+                alert.innerHTML = `
+                    <div class="alert-title">✓ All Systems Normal</div>
+                    <div class="alert-message">Phase balance: ${status.imbalance_kw.toFixed(2)} kW • Mode: ${status.mode}</div>
+                    <div class="alert-source">All phases within safe operating limits</div>
+                `;
+                container.appendChild(alert);
+            }
+        }
+
+        function getTimeAgo(timestamp) {
+            const now = new Date();
+            const then = new Date(timestamp);
+            const diffMs = now - then;
+            const diffMins = Math.floor(diffMs / 60000);
+            
+            if (diffMins < 1) return 'Just now';
+            if (diffMins < 60) return `${diffMins} min ago`;
+            const diffHours = Math.floor(diffMins / 60);
+            if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+            const diffDays = Math.floor(diffHours / 24);
+            return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+        }
+
+        function showError(message) {
+            const errorEl = document.getElementById('error-message');
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+        }
+
+        // Initial load
+        fetchDashboardData();
+        
+        // Refresh every 5 seconds
+        setInterval(fetchDashboardData, 5000);
+    </script>
+</body>
+</html>

@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
 from main import PhaseBalancingController
@@ -62,6 +63,18 @@ class SwitchEvent(BaseModel):
     reason: str
 
 app = FastAPI(title="Phase Balancing Controller - Real-time Analytics", version="2.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5500",      # VS Code Live Server
+        "http://127.0.0.1:5500",      # Alternative localhost
+        "http://localhost:3000",      # Just in case
+        "null"                         # For file:// protocol
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 controller = PhaseBalancingController(DataStorage())
 
 @app.post("/telemetry")
