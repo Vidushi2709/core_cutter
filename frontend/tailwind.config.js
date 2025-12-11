@@ -4,6 +4,17 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  safelist: [
+    'bg-phase-r',
+    'bg-phase-y',
+    'bg-phase-b',
+    'text-phase-r',
+    'text-phase-y',
+    'text-phase-b',
+    'border-phase-r',
+    'border-phase-y',
+    'border-phase-b',
+  ],
   theme: {
     extend: {
       colors: {
@@ -56,9 +67,9 @@ export default {
         'sidebar-ring': '#5865f2',
         
         // Phase Colors (Distinct colors for R, Y, B phases)
-        'phase-r': '#f43f5e', // Rose/Pink for R phase
-        'phase-y': '#38bdf8', // Light Blue/Sky for Y phase
-        'phase-b': '#3b82f6', // Blue for B phase
+        'phase-r': '#dc2626', // BRIGHT RED for R phase
+        'phase-y': '#0ea5e9', // SKY BLUE for Y phase
+        'phase-b': '#16a34a', // BRIGHT GREEN for B phase
         
         // Mode Colors (Consume/Export)
         'mode-consume': '#22c55e', // Green for consume

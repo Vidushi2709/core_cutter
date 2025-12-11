@@ -4,7 +4,7 @@ import { getSystemStatus } from '../utils/api';
 /**
  * Custom hook to fetch and manage system status with auto-refresh
  */
-export function useSystemStatus(refreshInterval = 3000) {
+export function useSystemStatus(refreshInterval = 2000) {
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

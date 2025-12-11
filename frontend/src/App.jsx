@@ -10,8 +10,8 @@ import { LoadingSpinner } from './components/LoadingSpinner';
 import { formatRelativeTime, getPhaseDisplayName } from './utils/helpers';
 
 function App() {
-  const { status, loading, error } = useSystemStatus(3000);
-  const { history } = useSwitchHistory(5000, 20);
+  const { status, loading, error } = useSystemStatus(2000); // Faster refresh - 2 seconds
+  const { history } = useSwitchHistory(2000, 5); // Only last 5 switches, refresh every 2 seconds
   const [selectedHouse, setSelectedHouse] = useState(null);
 
   if (loading) {

@@ -40,26 +40,26 @@ export function SwitchActivityItem({ switchEvent }) {
   };
 
   return (
-    <div className="flex gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+    <div className="flex gap-3 p-4 rounded-lg bg-card border-2 border-border hover:border-primary transition-all duration-300 animate-in slide-in-from-right-5 fade-in">
       {getIcon(switchEvent.reason)}
       
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-semibold text-foreground">{switchEvent.house_id}</span>
-          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-${fromColor} text-white`}>
+          <span className="font-bold text-foreground text-base">{switchEvent.house_id}</span>
+          <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-sm font-bold bg-${fromColor} text-white shadow-lg`}>
             {fromDisplay}
           </span>
-          <svg className="w-4 h-4 text-muted-foreground" fill="currentColor" viewBox="0 0 20 20">
+          <svg className="w-5 h-5 text-primary animate-pulse" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
           </svg>
-          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-${toColor} text-white`}>
+          <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-sm font-bold bg-${toColor} text-white shadow-lg`}>
             {toDisplay}
           </span>
         </div>
-        <p className="text-xs text-muted-foreground mt-1 truncate">{switchEvent.reason}</p>
+        <p className="text-sm text-muted-foreground mt-2 truncate">{switchEvent.reason}</p>
       </div>
       
-      <div className="text-xs text-muted-foreground whitespace-nowrap">
+      <div className="text-xs text-muted-foreground whitespace-nowrap font-medium">
         {formatRelativeTime(switchEvent.timestamp)}
       </div>
     </div>

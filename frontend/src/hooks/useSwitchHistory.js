@@ -4,7 +4,7 @@ import { getSwitchHistory } from '../utils/api';
 /**
  * Custom hook to fetch and manage switch history with auto-refresh
  */
-export function useSwitchHistory(refreshInterval = 5000, limit = 50) {
+export function useSwitchHistory(refreshInterval = 2000, limit = 5) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
