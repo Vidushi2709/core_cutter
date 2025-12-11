@@ -1,0 +1,80 @@
+{
+  "B1": {
+    "house_id": "B1",
+    "phase": "L2",
+    "last_changed": "2025-12-10T07:36:25.375057+00:00",
+    "last_reading": {
+      "timestamp": "2025-12-10T09:40:23.246485+00:00",
+      "voltage": 230.0,
+      "current": 12.0,
+      "power_kw": 2.4
+    },
+    "smoothed_power_kw": 2.4
+  },
+  "B2": {
+    "house_id": "B2",
+    "phase": "L3",
+    "last_changed": "2025-12-10T09:07:41.680397+00:00",
+    "last_reading": null,
+    "smoothed_power_kw": null
+  },
+  "B3": {
+    "house_id": "B3",
+    "phase": "L1",
+    "last_changed": "2025-12-10T09:26:21.607507+00:00",
+    "last_reading": null,
+    "smoothed_power_kw": null
+  },
+  "H1": {
+    "house_id": "H1",
+    "phase": "L1",
+    "last_changed": "1970-01-01T00:00:00+00:00",
+    "last_reading": {
+      "timestamp": "2025-12-10T09:40:23.246097+00:00",
+      "voltage": 230.0,
+      "current": 5.0,
+      "power_kw": 1.0
+    },
+    "smoothed_power_kw": 1.0
+  },
+  "H2": {
+    "house_id": "H2",
+    "phase": "L3",
+    "last_changed": "2025-12-10T09:40:23.246839+00:00",
+    "last_reading": {
+      "timestamp": "2025-12-10T09:40:23.246302+00:00",
+      "voltage": 230.0,
+      "current": -3.0,
+      "power_kw": 0.2
+    },
+    "smoothed_power_kw": 0.2
+  },
+  "H3": {
+    "house_id": "H3",
+    "phase": "L2",
+    "last_changed": "1970-01-01T00:00:00+00:00",
+    "last_reading": null,
+    "smoothed_power_kw": null
+  },
+  "H4": {
+    "house_id": "H4",
+    "phase": "L2",
+    "last_changed": "2025-12-10T07:37:03.773855+00:00",
+    "last_reading": null,
+    "smoothed_power_kw": null
+  },
+  "V1": {
+    "house_id": "V1",
+    "phase": "L2",
+    "last_changed": "1970-01-01T00:00:00+00:00",
+    "last_reading": null,
+    "smoothed_power_kw": null
+  },
+  "V2": {
+    "house_id": "V2",
+    "phase": "L2",
+    "last_changed": "2025-12-10T09:08:21.438257+00:00",
+    "last_reading": null,
+    "smoothed_power_kw": null
+  }
+}

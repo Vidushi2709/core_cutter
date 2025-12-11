@@ -1,0 +1,26 @@
+[
+  {
+    "house_id": "H1",
+    "phase": "L1",
+    "timestamp": "2025-12-10T09:40:23.246097+00:00",
+    "voltage": 230.0,
+    "current": 5.0,
+    "power_kw": 1.0
+  },
+  {
+    "house_id": "H2",
+    "phase": "L1",
+    "timestamp": "2025-12-10T09:40:23.246302+00:00",
+    "voltage": 230.0,
+    "current": -3.0,
+    "power_kw": 0.2
+  },
+  {
+    "house_id": "B1",
+    "phase": "L2",
+    "timestamp": "2025-12-10T09:40:23.246485+00:00",
+    "voltage": 230.0,
+    "current": 12.0,
+    "power_kw": 2.4
+  }
+]

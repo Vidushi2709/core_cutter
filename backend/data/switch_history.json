@@ -47,5 +47,33 @@
     "from_phase": "L2",
     "to_phase": "L1",
     "reason": "Consume: move 1.50kW from L2 to L1 (\u0394=3.00kW)"
+  },
+  {
+    "timestamp": "2025-12-10T09:26:21.607648+00:00",
+    "house_id": "B3",
+    "from_phase": "L2",
+    "to_phase": "L1",
+    "reason": "Consume: move 0.40kW from L2 to L1 (\u0394=0.30kW)"
+  },
+  {
+    "timestamp": "2025-12-10T09:33:22.525648+00:00",
+    "house_id": "H2",
+    "from_phase": "L3",
+    "to_phase": "L2",
+    "reason": "Consume: move 1.00kW from L3 to L2 (\u0394=1.70kW)"
+  },
+  {
+    "timestamp": "2025-12-10T09:38:46.247026+00:00",
+    "house_id": "H2",
+    "from_phase": "L3",
+    "to_phase": "L2",
+    "reason": "Consume: move 1.00kW from L3 to L2 (\u0394=1.40kW)"
+  },
+  {
+    "timestamp": "2025-12-10T09:40:23.246967+00:00",
+    "house_id": "H2",
+    "from_phase": "L1",
+    "to_phase": "L3",
+    "reason": "Consume: move 0.20kW from L1 to L3 (\u0394=0.20kW)"
   }
 ]
