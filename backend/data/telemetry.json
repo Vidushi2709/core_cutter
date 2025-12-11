@@ -1,26 +1,66 @@
 [
   {
-    "house_id": "H1",
-    "phase": "L1",
-    "timestamp": "2025-12-10T09:40:23.246097+00:00",
-    "voltage": 230.0,
-    "current": 5.0,
-    "power_kw": 1.0
-  },
-  {
-    "house_id": "H2",
-    "phase": "L1",
-    "timestamp": "2025-12-10T09:40:23.246302+00:00",
-    "voltage": 230.0,
-    "current": -3.0,
-    "power_kw": 0.2
-  },
-  {
-    "house_id": "B1",
-    "phase": "L2",
-    "timestamp": "2025-12-10T09:40:23.246485+00:00",
-    "voltage": 230.0,
-    "current": 12.0,
+    "house_id": "House_01",
+    "phase": "L3",
+    "timestamp": "2025-12-11T09:07:54.419876+00:00",
+    "voltage": 238.4,
+    "current": 10.5,
     "power_kw": 2.4
+  },
+  {
+    "house_id": "House_02",
+    "phase": "L1",
+    "timestamp": "2025-12-11T09:07:54.943204+00:00",
+    "voltage": 239.1,
+    "current": 5.7,
+    "power_kw": 1.3
+  },
+  {
+    "house_id": "House_03",
+    "phase": "L3",
+    "timestamp": "2025-12-11T09:07:55.451453+00:00",
+    "voltage": 237.8,
+    "current": 14.3,
+    "power_kw": 3.1
+  },
+  {
+    "house_id": "House_04",
+    "phase": "L1",
+    "timestamp": "2025-12-11T09:07:55.991271+00:00",
+    "voltage": 242.1,
+    "current": -5.2,
+    "power_kw": -1.2
+  },
+  {
+    "house_id": "House_05",
+    "phase": "L2",
+    "timestamp": "2025-12-11T09:07:56.504555+00:00",
+    "voltage": 238.9,
+    "current": 12.1,
+    "power_kw": 2.8
+  },
+  {
+    "house_id": "House_06",
+    "phase": "L1",
+    "timestamp": "2025-12-11T09:07:57.014583+00:00",
+    "voltage": 239.5,
+    "current": 6.2,
+    "power_kw": 1.4
+  },
+  {
+    "house_id": "House_07",
+    "phase": "L2",
+    "timestamp": "2025-12-11T09:07:57.526220+00:00",
+    "voltage": 236.8,
+    "current": 10.0,
+    "power_kw": 2.2
+  },
+  {
+    "house_id": "House_08",
+    "phase": "L1",
+    "timestamp": "2025-12-11T09:07:58.041243+00:00",
+    "voltage": 241.2,
+    "current": 15.3,
+    "power_kw": 3.5
   }
 ]

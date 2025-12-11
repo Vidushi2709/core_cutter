@@ -31,6 +31,9 @@ PHASE_OVERLOAD_THRESHOLD = 1.0   # 1kW safe limit
 HIGH_IMBALANCE_KW = 0.15         # 150W
 CRITICAL_IMBALANCE_KW = 0.6     # 600W
 
+# Smoothing factor for power readings (EWMA)
+EWMA_ALPHA = 0.3  # 30% weight to new reading, 70% to previous smoothed value
+
 # Startup behavior
 RESET_STATE_ON_START = True          # If True, clear last readings/smoothed power on startup
 RESET_TELEMETRY_ON_START = True      # If True, truncate telemetry log on startup
