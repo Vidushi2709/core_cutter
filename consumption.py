@@ -34,12 +34,10 @@ class consumption_logic:
 
         print(f"  [CONSUME] Current imbalance: {current_imbalance_kw:.2f} kW")
         
-        # Removed overly restrictive check - allow balancing even for smaller imbalances
         if current_imbalance_kw < MIN_IMBALANCE_KW:
             print(f"  [CONSUME] Imbalance too low ({current_imbalance_kw:.2f} < {MIN_IMBALANCE_KW})")
-            return None  # Only skip if imbalance is truly insignificant
+            return None
 
-        # Collect houses with valid readings
         house_powers: List[Dict] = []
         for house in self.registry.houses.values():
             r = house.last_reading
@@ -48,17 +46,14 @@ class consumption_logic:
             if (now - r.timestamp).total_seconds() > READING_EXPIRY_SECONDS:
                 continue
 
-            power_kw = house.smoothed_power_kw if house.smoothed_power_kw is not None else r.power_kw
             house_powers.append({
                 "house_id": house.house_id,
                 "phase": house.phase,
-                "power_kw": power_kw,
+                "power_kw": r.power_kw,
             })
 
         print(f"  [CONSUME] Found {len(house_powers)} houses with valid readings")
         
-        # Filter candidates: consumers with power > 0.05 kW (lowered threshold)
-        # Include ALL consuming houses, not just heavy ones
         candidates = [hp for hp in house_powers if hp["power_kw"] > 0.05]
         candidates.sort(key=lambda x: abs(x["power_kw"]), reverse=True)
 
@@ -70,16 +65,14 @@ class consumption_logic:
             print(f"  [CONSUME] No candidates found")
             return None
 
-        # Compute baseline net power per phase
         baseline_net = {p: 0.0 for p in PHASES}
         for hp in house_powers:
             baseline_net[hp["phase"]] += hp["power_kw"]
 
         print(f"  [CONSUME] Baseline phase loads: L1={baseline_net['L1']:.2f}, L2={baseline_net['L2']:.2f}, L3={baseline_net['L3']:.2f}")
         
-        # Aggressive hysteresis for critical imbalances, more lenient otherwise
         if current_imbalance_kw >= CRITICAL_IMBALANCE_KW:
-            hysteresis_threshold = 0.05  # Very low for critical situations
+            hysteresis_threshold = 0.05
         else:
             hysteresis_threshold = max(SWITCH_IMPROVEMENT_KW, 0.02 * current_imbalance_kw)
         print(f"  [CONSUME] Hysteresis threshold: {hysteresis_threshold:.3f} kW")
@@ -93,11 +86,11 @@ class consumption_logic:
             source_phase = candidate["phase"]
             power_kw = candidate["power_kw"]
 
-            # Check if house is too small - but allow ALL houses if imbalance is critical
-            is_small_house = power_kw < HIGH_IMPORT_THRESHOLD
+            # Lowered threshold to allow small houses (100W+) to be switched
+            is_small_house = power_kw < 0.1  # 100W threshold instead of 400W
             skip_small_house = (
                 is_small_house and 
-                current_imbalance_kw < CRITICAL_IMBALANCE_KW  # Only skip small houses if NOT critical
+                current_imbalance_kw < CRITICAL_IMBALANCE_KW  # Only skip tiny houses if NOT critical
             )
             if skip_small_house:
                 print(f"    [CONSUME] Skipping {house_id} ({power_kw:.2f}kW - too small for non-critical imbalance)")
@@ -109,7 +102,6 @@ class consumption_logic:
                 if target_phase == source_phase:
                     continue
 
-                # Simulate move
                 new_net = baseline_net.copy()
                 new_net[source_phase] -= power_kw
                 new_net[target_phase] += power_kw

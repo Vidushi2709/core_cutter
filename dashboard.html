@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Phase Balancing Controller Dashboard</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
         * {
             margin: 0;
             padding: 0;
@@ -12,44 +14,49 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-            background: #12242e;
-            color: #f3e3ea;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #1a2332;
+            color: #e4e7eb;
             overflow-x: hidden;
         }
 
         .header {
-            background: #12242e;
+            background: #232f3e;
             padding: 20px 40px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            border-bottom: 1px solid #2d3a4d;
         }
 
         .header h1 {
-            font-size: 28px;
-            font-weight: bold;
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
         }
 
         .header .live-badge {
             display: flex;
             align-items: center;
             gap: 8px;
-            color: #e4a2b1;
+            color: #9ca3af;
+            font-size: 14px;
+            font-weight: 500;
         }
 
         .pulse {
-            width: 12px;
-            height: 12px;
-            background: #50afb6;
+            width: 10px;
+            height: 10px;
+            background: #10b981;
             border-radius: 50%;
             animation: pulse 2s infinite;
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
         }
 
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(0.95); }
         }
 
         .container {
@@ -66,61 +73,69 @@
         }
 
         .card {
-            background: #1c2e38;
-            border-radius: 12px;
-            padding: 25px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            transition: transform 0.2s;
-            border: 1px solid #324859;
+            background: #283544;
+            border-radius: 16px;
+            padding: 28px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transition: all 0.3s ease;
+            border: 1px solid #324459;
         }
 
         .card:hover {
-            transform: translateY(-2px);
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+            border-color: #3d5270;
         }
 
         .card-label {
-            font-size: 14px;
-            color: #fbe2a7;
-            margin-bottom: 15px;
-            font-weight: 500;
-            letter-spacing: 0.5px;
+            font-size: 12px;
+            color: #9ca3af;
+            margin-bottom: 16px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
         }
 
         .card-value {
             font-size: 36px;
-            font-weight: bold;
+            font-weight: 800;
             margin-bottom: 10px;
+            letter-spacing: -1px;
         }
 
         .card-subtitle {
-            font-size: 14px;
-            color: #e4a2b1;
+            font-size: 13px;
+            color: #6b7280;
+            font-weight: 500;
         }
 
-        .mode-consume { color: #50afb6; }
-        .mode-export { color: #c67b96; }
-        .imbalance-low { color: #50afb6; }
-        .imbalance-medium { color: #c67b96; }
-        .imbalance-high { color: #e35ea4; }
+        .mode-consume { color: #10b981; }
+        .mode-export { color: #f59e0b; }
+        .imbalance-low { color: #10b981; }
+        .imbalance-medium { color: #f59e0b; }
+        .imbalance-high { color: #ef4444; }
 
         .progress-bar {
             width: 100%;
-            height: 8px;
-            background: #24272b;
-            border-radius: 4px;
+            height: 10px;
+            background: #1f2937;
+            border-radius: 8px;
             overflow: hidden;
-            margin-top: 10px;
+            margin-top: 12px;
         }
 
         .progress-fill {
             height: 100%;
-            transition: width 0.3s;
+            transition: width 0.5s ease;
+            border-radius: 8px;
         }
 
         .section-title {
-            font-size: 20px;
-            font-weight: bold;
-            margin: 30px 0 20px 0;
+            font-size: 18px;
+            font-weight: 700;
+            margin: 35px 0 20px 0;
+            letter-spacing: -0.3px;
+            color: #f3f4f6;
         }
 
         .phase-cards {
@@ -131,68 +146,85 @@
         }
 
         .phase-card {
-            background: #1c2e38;
-            border-radius: 12px;
+            background: #283544;
+            border-radius: 16px;
             overflow: hidden;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            border: 1px solid #324859;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border: 1px solid #324459;
+            transition: all 0.3s ease;
+        }
+
+        .phase-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.25);
         }
 
         .phase-header {
-            padding: 20px;
+            padding: 24px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
-        .phase-header.phase-r { background: #7f1d1d; }
-        .phase-header.phase-y { background: #713f12; }
-        .phase-header.phase-b { background: #1e3a8a; }
+        .phase-header.phase-r { background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); }
+        .phase-header.phase-y { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+        .phase-header.phase-b { background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); }
 
         .phase-name {
-            font-size: 24px;
-            font-weight: bold;
+            font-size: 20px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
         }
 
-        .phase-name.phase-r { color: #fca5a5; }
-        .phase-name.phase-y { color: #fde047; }
-        .phase-name.phase-b { color: #93c5fd; }
+        .phase-name.phase-r { color: #fef2f2; }
+        .phase-name.phase-y { color: #fffbeb; }
+        .phase-name.phase-b { color: #eff6ff; }
 
         .phase-body {
-            padding: 25px;
+            padding: 28px;
+            background: #283544;
         }
 
         .phase-metric {
-            margin-bottom: 20px;
+            margin-bottom: 24px;
         }
 
         .phase-metric-label {
-            font-size: 14px;
-            color: #e4a2b1;
-            margin-bottom: 5px;
+            font-size: 12px;
+            color: #9ca3af;
+            margin-bottom: 8px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .phase-metric-value {
             font-size: 28px;
-            font-weight: bold;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            color: #f3f4f6;
         }
 
         .status-badge {
             display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
         }
 
         .status-normal {
-            background: rgba(80, 175, 182, 0.2);
-            color: #50afb6;
+            background: rgba(16, 185, 129, 0.15);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.3);
         }
 
         .status-warning {
-            background: rgba(198, 123, 150, 0.2);
-            color: #c67b96;
+            background: rgba(245, 158, 11, 0.15);
+            color: #f59e0b;
+            border: 1px solid rgba(245, 158, 11, 0.3);
         }
 
         .two-column {
@@ -204,179 +236,223 @@
         .house-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
-            gap: 15px;
+            gap: 16px;
         }
+
         .house-card {
-            background: #1c2e38;
-            border-radius: 8px;
-            padding: 20px;
+            background: #283544;
+            border-radius: 12px;
+            padding: 22px;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.3s ease;
             position: relative;
-            border: 1px solid #324859;
+            border: 1px solid #324459;
         }
 
         .house-card:hover {
-            background: #20333d;
-            transform: translateY(-2px);
-            border-color: #50afb6;
+            background: #2f3d4f;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+            border-color: #3d5270;
         }
 
         .house-id {
-            font-size: 16px;
-            font-weight: bold;
-            margin-bottom: 10px;
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            letter-spacing: -0.2px;
+            color: #f3f4f6;
         }
 
         .house-phase-badge {
             display: inline-block;
-            padding: 4px 10px;
-            border-radius: 4px;
+            padding: 5px 11px;
+            border-radius: 8px;
             font-size: 11px;
-            font-weight: bold;
+            font-weight: 800;
             margin-right: 10px;
+            letter-spacing: 0.5px;
         }
 
         .phase-badge-r {
-            background: #7f1d1d;
-            color: #fca5a5;
+            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+            color: #fef2f2;
         }
 
         .phase-badge-y {
-            background: #713f12;
-            color: #fde047;
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: #fffbeb;
         }
 
         .phase-badge-b {
-            background: #1e3a8a;
-            color: #93c5fd;
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: #eff6ff;
         }
 
         .house-power {
-            font-size: 12px;
-            color: #e4a2b1;
+            font-size: 13px;
+            color: #9ca3af;
             display: inline-block;
+            font-weight: 600;
         }
 
         .house-details {
             font-size: 11px;
-            color: #e4a2b1;
-            margin-top: 8px;
+            color: #6b7280;
+            margin-top: 10px;
+            font-weight: 500;
         }
 
         .house-status {
             position: absolute;
-            top: 20px;
-            right: 20px;
-            width: 10px;
-            height: 10px;
+            top: 22px;
+            right: 22px;
+            width: 9px;
+            height: 9px;
             border-radius: 50%;
         }
 
-        .status-online { background: #50afb6; }
-        .status-warning { background: #c67b96; }
-        .status-offline { background: #e35ea4; }
+        .status-online { 
+            background: #10b981;
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+        }
+        .status-warning { 
+            background: #f59e0b;
+            box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+        }
+        .status-offline { 
+            background: #ef4444;
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+        }
 
         .export-badge {
             display: inline-block;
             font-size: 10px;
-            color: #c67b96;
-            font-weight: 600;
-            margin-left: 5px;
+            color: #f59e0b;
+            font-weight: 700;
+            margin-left: 6px;
+            letter-spacing: 0.5px;
+        }
+
+        .consume-badge {
+            display: inline-block;
+            font-size: 10px;
+            color: #10b981;
+            font-weight: 700;
+            margin-left: 6px;
+            letter-spacing: 0.5px;
         }
 
         .activity-panel {
-            background: #1c2e38;
-            border-radius: 12px;
-            padding: 25px;
+            background: #283544;
+            border-radius: 16px;
+            padding: 28px;
             height: fit-content;
-            border: 1px solid #324859;
+            border: 1px solid #324459;
         }
 
         .activity-title {
-            font-size: 18px;
-            font-weight: bold;
+            font-size: 16px;
+            font-weight: 700;
             margin-bottom: 20px;
+            letter-spacing: -0.3px;
+            color: #f3f4f6;
         }
         .activity-item {
-            background: #24272b;
-            border-radius: 6px;
-            padding: 15px;
-            margin-bottom: 10px;
+            background: #1f2937;
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 12px;
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 14px;
+            transition: all 0.2s ease;
+            border: 1px solid #2d3a4d;
+        }
+
+        .activity-item:hover {
+            background: #232f3e;
+            border-color: #3d5270;
         }
 
         .activity-dot {
-            width: 12px;
-            height: 12px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
             flex-shrink: 0;
+            box-shadow: 0 0 8px currentColor;
         }
 
         .activity-time {
-            font-size: 12px;
-            color: #e4a2b1;
+            font-size: 11px;
+            color: #9ca3af;
+            font-weight: 500;
         }
 
         .activity-text {
-            font-size: 14px;
-            color: #f3e3ea;
+            font-size: 13px;
+            color: #e4e7eb;
+            font-weight: 600;
         }
 
         .activity-reason {
             margin-left: auto;
-            font-size: 11px;
+            font-size: 10px;
+            color: #6b7280;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .alert-card {
-            background: #1c2e38;
-            border-radius: 12px;
-            padding: 25px;
+            background: #283544;
+            border-radius: 16px;
+            padding: 28px;
             margin-top: 20px;
-            border: 1px solid #324859;
+            border: 1px solid #324459;
         }
 
         .alert-item {
-            border-radius: 6px;
-            padding: 15px;
-            margin-bottom: 10px;
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid;
         }
 
         .alert-warning {
-            background: #24272b;
-            border-left: 4px solid #c67b96;
+            background: rgba(245, 158, 11, 0.1);
+            border-color: rgba(245, 158, 11, 0.3);
         }
         
         .alert-critical {
-            background: #24272b;
-            border-left: 4px solid #e35ea4;
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.3);
         }
 
         .alert-success {
-            background: #24272b;
-            border-left: 4px solid #50afb6;
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.3);
         }
 
         .alert-title {
-            font-size: 14px;
-            font-weight: bold;
-            margin-bottom: 5px;
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            letter-spacing: -0.2px;
         }
 
-        .alert-warning .alert-title { color: #c67b96; }
-        .alert-critical .alert-title { color: #e35ea4; }
-        .alert-success .alert-title { color: #50afb6; }
+        .alert-warning .alert-title { color: #fbbf24; }
+        .alert-critical .alert-title { color: #f87171; }
+        .alert-success .alert-title { color: #34d399; }
 
         .alert-message {
             font-size: 12px;
-            margin-bottom: 8px;
+            font-weight: 500;
         }
 
-        .alert-warning .alert-message { color: #e4a2b1; }
-        .alert-critical .alert-message { color: #e4a2b1; }
-        .alert-success .alert-message { color: #e4a2b1; }
+        .alert-warning .alert-message { color: #fbbf24; }
+        .alert-critical .alert-message { color: #f87171; }
+        .alert-success .alert-message { color: #34d399; }
         
         .alert-source {
             font-size: 11px;
@@ -387,23 +463,51 @@
             margin-top: 8px;
         }
         
-        .alert-warning .alert-source { color: #fbe2a7; }
-        .alert-critical .alert-source { color: #fbe2a7; }
-        .alert-success .alert-source { color: #fbe2a7; }
+        .alert-warning .alert-source { color: #fde68a; }
+        .alert-critical .alert-source { color: #fca5a5; }
+        .alert-success .alert-source { color: #6ee7b7; }
 
         .loading {
             text-align: center;
             padding: 50px;
-            font-size: 18px;
-            color: #94a3b8;
+            font-size: 16px;
+            color: #9ca3af;
+            font-weight: 500;
         }
 
         .error {
-            background: #7f1d1d;
+            background: rgba(239, 68, 68, 0.15);
             color: #fca5a5;
-            padding: 15px;
-            border-radius: 8px;
+            padding: 16px 20px;
+            border-radius: 12px;
             margin: 20px 0;
+            font-weight: 600;
+            font-size: 13px;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        @media (max-width: 1400px) {
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            .header {
+                padding: 16px 20px;
+            }
+            .stats-row {
+                grid-template-columns: 1fr;
+            }
+            .phase-cards {
+                grid-template-columns: 1fr;
+            }
+            .house-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -528,21 +632,22 @@
             // Imbalance
             const imbalanceEl = document.getElementById('imbalance-value');
             const imbalance = status.imbalance_kw;
-            imbalanceEl.textContent = `${imbalance.toFixed(1)} kW`;
+            imbalanceEl.textContent = `${imbalance.toFixed(2)} kW`;
             
-            if (imbalance < 2) {
+            // Updated thresholds: low < 0.15, medium < 0.6, high >= 0.6
+            if (imbalance < 0.15) {
                 imbalanceEl.className = 'card-value imbalance-low';
-            } else if (imbalance < 5) {
+            } else if (imbalance < 0.6) {
                 imbalanceEl.className = 'card-value imbalance-medium';
             } else {
                 imbalanceEl.className = 'card-value imbalance-high';
             }
             
-            // Progress bar
+            // Progress bar - scale to 1kW max for better visibility
             const progressEl = document.getElementById('imbalance-progress');
-            const progressPercent = Math.min((imbalance / 10) * 100, 100);
+            const progressPercent = Math.min((imbalance / 1.0) * 100, 100);
             progressEl.style.width = `${progressPercent}%`;
-            progressEl.style.background = imbalance < 2 ? '#10b981' : imbalance < 5 ? '#f59e0b' : '#ef4444';
+            progressEl.style.background = imbalance < 0.15 ? '#10b981' : imbalance < 0.6 ? '#f59e0b' : '#ef4444';
             
             // Total Houses
             const totalHouses = status.phases.reduce((sum, phase) => sum + phase.house_count, 0);
@@ -605,7 +710,8 @@
             
             allHouses.forEach(house => {
                 const phaseBadgeClass = `phase-badge-${house.phase.toLowerCase()}`;
-                const isExport = house.current < 0;
+                const isExport = house.power_kw < 0;
+                const isConsume = house.power_kw > 0;
                 
                 const card = document.createElement('div');
                 card.className = 'house-card';
@@ -616,6 +722,7 @@
                         <span class="house-phase-badge ${phaseBadgeClass}">${house.phase}</span>
                         <span class="house-power">${house.power_kw.toFixed(2)} kW</span>
                         ${isExport ? '<span class="export-badge">EXPORT</span>' : ''}
+                        ${isConsume ? '<span class="consume-badge">CONSUME</span>' : ''}
                     </div>
                     <div class="house-details">${house.voltage.toFixed(1)}V • ${house.current.toFixed(1)}A</div>
                 `;
@@ -628,7 +735,7 @@
             container.innerHTML = '';
             
             if (switches.length === 0) {
-                container.innerHTML = '<div style="color: #64748b; text-align: center; padding: 20px;">No recent switches</div>';
+                container.innerHTML = '<div style="color: #6b7280; text-align: center; padding: 20px; font-size: 13px;">No recent switches</div>';
                 return;
             }
             
@@ -639,7 +746,7 @@
                 const item = document.createElement('div');
                 item.className = 'activity-item';
                 item.innerHTML = `
-                    <div class="activity-dot" style="background: ${colors[idx % colors.length]}"></div>
+                    <div class="activity-dot" style="background: ${colors[idx % colors.length]}; color: ${colors[idx % colors.length]}"></div>
                     <div style="flex: 1;">
                         <div class="activity-time">${timeAgo}</div>
                         <div class="activity-text">${sw.house_id}: ${sw.from_phase} → ${sw.to_phase}</div>
@@ -670,22 +777,22 @@
                 alert.className = 'alert-item alert-critical';
                 alert.innerHTML = `
                     <div class="alert-title">🚨 CRITICAL Phase Imbalance</div>
-                    <div class="alert-message">Imbalance: ${status.imbalance_kw.toFixed(2)} kW</div>
-                    <div class="alert-source">Source: ${phasePowers}</div>
+                    <div class="alert-message">Imbalance: ${status.imbalance_kw.toFixed(2)} kW (threshold: 0.6 kW)</div>
+                    <div class="alert-source">Phase loads: ${phasePowers}</div>
                 `;
                 container.appendChild(alert);
             }
-            // High imbalance (>= 0.3 kW)
-            else if (status.imbalance_kw >= 0.3) {
+            // High imbalance (>= 0.15 kW) - matches MIN_IMBALANCE_KW
+            else if (status.imbalance_kw >= 0.15) {
                 hasIssues = true;
                 const maxPhase = status.phases.reduce((max, p) => p.total_power_kw > max.total_power_kw ? p : max);
                 const minPhase = status.phases.reduce((min, p) => p.total_power_kw < min.total_power_kw ? p : min);
                 const alert = document.createElement('div');
                 alert.className = 'alert-item alert-warning';
                 alert.innerHTML = `
-                    <div class="alert-title">⚠ High Phase Imbalance</div>
-                    <div class="alert-message">Imbalance: ${status.imbalance_kw.toFixed(2)} kW</div>
-                    <div class="alert-source">Source: ${maxPhase.phase} (${maxPhase.total_power_kw.toFixed(2)} kW) vs ${minPhase.phase} (${minPhase.total_power_kw.toFixed(2)} kW)</div>
+                    <div class="alert-title">⚠ Phase Imbalance Detected</div>
+                    <div class="alert-message">Imbalance: ${status.imbalance_kw.toFixed(2)} kW (threshold: 0.15 kW)</div>
+                    <div class="alert-source">Highest: ${maxPhase.phase} (${maxPhase.total_power_kw.toFixed(2)} kW) | Lowest: ${minPhase.phase} (${minPhase.total_power_kw.toFixed(2)} kW)</div>
                 `;
                 container.appendChild(alert);
             }
@@ -721,7 +828,7 @@
                 });
             }
             
-            // Power issues with specific details
+            // Power issues with specific details (updated thresholds to 0.1 kW)
             if (status.power_issues.HIGH_EXPORT && status.power_issues.HIGH_EXPORT.length > 0) {
                 hasIssues = true;
                 status.power_issues.HIGH_EXPORT.forEach(phase => {
@@ -732,7 +839,7 @@
                     alert.className = 'alert-item alert-warning';
                     alert.innerHTML = `
                         <div class="alert-title">☀️ High Export - ${phase}</div>
-                        <div class="alert-message">${totalExport.toFixed(2)} kW (threshold: 0.4 kW)</div>
+                        <div class="alert-message">${totalExport.toFixed(2)} kW (threshold: 0.1 kW)</div>
                         <div class="alert-source">Exporters: ${exporters.map(h => `${h.house_id} (${Math.abs(h.power_kw).toFixed(2)}kW)`).join(', ')}</div>
                     `;
                     container.appendChild(alert);
@@ -749,8 +856,8 @@
                     alert.className = 'alert-item alert-warning';
                     alert.innerHTML = `
                         <div class="alert-title">🔌 High Import - ${phase}</div>
-                        <div class="alert-message">${totalImport.toFixed(2)} kW (threshold: 0.4 kW)</div>
-                        <div class="alert-source">Heavy consumers: ${importers.filter(h => h.power_kw > 0.3).map(h => `${h.house_id} (${h.power_kw.toFixed(2)}kW)`).join(', ') || 'Multiple small loads'}</div>
+                        <div class="alert-message">${totalImport.toFixed(2)} kW (threshold: 0.1 kW)</div>
+                        <div class="alert-source">Consumers: ${importers.map(h => `${h.house_id} (${h.power_kw.toFixed(2)}kW)`).join(', ')}</div>
                     `;
                     container.appendChild(alert);
                 });

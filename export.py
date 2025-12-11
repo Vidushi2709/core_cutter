@@ -40,21 +40,16 @@ class export_logic:
             r = house.last_reading
             if not r:
                 continue
-            if (now - r.timestamp).total_seconds() > READING_EXPIRY_SECONDS:  # reading too old
+            if (now - r.timestamp).total_seconds() > READING_EXPIRY_SECONDS:
                 continue
 
-            # Morning: target large exporters (negative power_kw)
-            # Negative `power_kw` indicates exporting (generation).
-            # Select exporters (lowered threshold for better balancing)
-            if r.power_kw < -0.05:  # 0.05 kW threshold (lowered from 0.1)
+            if r.power_kw < -0.05:
                 candidates.append({
                     "house_id": house.house_id,
                     "current_phase": house.phase,
                     "power_kw": r.power_kw,
                     "voltage": r.voltage,
                 })
-        # Sort by magnitude of export (largest exporters first)
-        # Since exporters have negative power_kw, sort to get most negative first
         candidates.sort(key=lambda x: abs(x["power_kw"]), reverse=True)
         return candidates
 
@@ -71,7 +66,8 @@ class export_logic:
         phase_stats = self.analyzer.get_phase_stats()
         current_imbalance_kw = self.analyzer.get_imbalance(phase_stats)
 
-        if current_imbalance_kw < max(MIN_IMBALANCE_KW, HIGH_IMBALANCE_KW):
+        # Remove redundant check - MIN_IMBALANCE_KW already checked in run_cycle()
+        if current_imbalance_kw < MIN_IMBALANCE_KW:
             return None  # No significant imbalance to address
         
         # Phase power mapping
@@ -82,35 +78,27 @@ class export_logic:
         if conflicted_phases:
             source_phase = conflicted_phases[0]
             
-            # Check: Are ALL houses on this one phase? (edge case)
             all_houses_on_source = all(
                 h.phase == source_phase for h in self.registry.houses.values()
                 if h.last_reading
             )
             
             if all_houses_on_source:
-                # Edge case: All houses on one phase with mixed export/import
-                # PRIORITY: Resolve conflict by separating exporter, even if imbalance increases temporarily
-                # This breaks the internal conflict so normal balancing can work later
                 exporters_on_source = [
                     h for h in self.registry.houses.values()
                     if h.phase == source_phase and h.last_reading and h.last_reading.power_kw < -0.05
                 ]
                 
                 if exporters_on_source:
-                    # Move the strongest exporter to break the conflict
                     exporter = max(exporters_on_source, key=lambda h: abs(h.last_reading.power_kw) if h.last_reading else 0)
                     if exporter.last_reading:
                         house_id = exporter.house_id
                         power = exporter.last_reading.power_kw
                     
-                    # Try empty phases first
                     empty_phases = [p for p in PHASES if p != source_phase and phase_power[p] == 0]
                     
                     if empty_phases:
                         to_phase = empty_phases[0]
-                        # ALWAYS recommend this move to resolve internal conflict
-                        # Even if it temporarily increases global imbalance
                         new_power = phase_power.copy()
                         new_power[source_phase] -= power
                         new_power[to_phase] += power
@@ -127,8 +115,6 @@ class export_logic:
                             reason=f"CONFLICT RESOLUTION: Separating mixed export/import on {source_phase} by moving {power:.2f}kW exporter to {to_phase}",
                         )
             else:
-                # Normal case: Houses distributed, conflict on one phase
-                # Try to move exporters FROM the conflicted phase
                 exporters_on_source = [
                     h for h in self.registry.houses.values()
                     if h.phase == source_phase and h.last_reading and h.last_reading.power_kw < -0.1
@@ -140,7 +126,6 @@ class export_logic:
                         house_id = exporter.house_id
                         power = exporter.last_reading.power_kw
                     
-                    # Move to phases with importers (natural pairing)
                     importer_phases = [
                         phase for phase in PHASES 
                         if phase != source_phase and phase_power[phase] > 0.1
@@ -149,7 +134,6 @@ class export_logic:
                     best_switch = None
                     
                     for to_phase in importer_phases:
-                        # Simulate move
                         new_power = phase_power.copy()
                         new_power[source_phase] -= power
                         new_power[to_phase] += power
@@ -171,7 +155,6 @@ class export_logic:
                     if best_switch:
                         return best_switch
         
-        # Priority 2: Global imbalance balancing (existing logic)
         voltage_issues = self.analyzer.detect_voltage_issues(phase_stats)
         over_voltage_phases = set(voltage_issues.get("OVER_VOLTAGE", []))
 
@@ -182,24 +165,16 @@ class export_logic:
             from_phase = c["current_phase"]
             power = c["power_kw"]
 
-            # Sign convention: power < 0 means exporting (generation).
-            # The candidates list filters for power_kw < -0.05, so power should always be negative here.
-            assert isinstance(power, (int, float)), f"power must be numeric, got {type(power)}"
-            assert power < 0, f"Expected exporter (power < 0), got power={power} for house {house_id}"
-
-            if abs(power) < HIGH_EXPORT_THRESHOLD and current_imbalance_kw < CRITICAL_IMBALANCE_KW:
+            # Allow houses with >= 100W export power (lowered from 400W)
+            if abs(power) < 0.1 and current_imbalance_kw < CRITICAL_IMBALANCE_KW:
                 continue
             
             for to_phase in PHASES:
                 if to_phase == from_phase:
                     continue
 
-                # Simulate the move by adjusting phase totals.
-                # When moving exporter from from_phase to to_phase:
-                #   - Remove power from from_phase: new_power[from_phase] -= power (power is negative, so this increases the value)
-                #   - Add power to to_phase: new_power[to_phase] += power (power is negative, so this decreases the value)
                 new_power = phase_power.copy()
-                new_power[from_phase] -= power 
+                new_power[from_phase] -= power
                 new_power[to_phase] += power
 
                 new_imbalance_kw = max(new_power.values()) - min(new_power.values())
@@ -212,10 +187,8 @@ class export_logic:
                 if improvement_kw <= 0:
                     continue
 
-                # Hysteresis threshold: require minimum improvement to avoid oscillation.
-                # For critical imbalances, use aggressive threshold; otherwise be conservative.
                 if current_imbalance_kw >= CRITICAL_IMBALANCE_KW:
-                    hysteresis_threshold = 0.05  # Very low for critical situations
+                    hysteresis_threshold = 0.05
                 else:
                     hysteresis_threshold = max(SWITCH_IMPROVEMENT_KW, 0.05 * current_imbalance_kw)
                 if improvement_kw < hysteresis_threshold:
