@@ -47,5 +47,845 @@
     "from_phase": "L2",
     "to_phase": "L1",
     "reason": "Consume: move 1.50kW from L2 to L1 (\u0394=3.00kW)"
+  },
+  {
+    "timestamp": "2025-12-10T09:18:23.959481+00:00",
+    "house_id": "D1",
+    "from_phase": "L1",
+    "to_phase": "L2",
+    "reason": "Consume: move 1.00kW from L1 to L2 (\u0394=0.20kW)"
+  },
+  {
+    "timestamp": "2025-12-10T09:18:44.763298+00:00",
+    "house_id": "D3",
+    "from_phase": "L2",
+    "to_phase": "L3",
+    "reason": "Consume: move 2.40kW from L2 to L3 (\u0394=1.20kW)"
+  },
+  {
+    "timestamp": "2025-12-10T09:26:06.511779+00:00",
+    "house_id": "B3",
+    "from_phase": "L2",
+    "to_phase": "L1",
+    "reason": "Consume: move 0.40kW from L2 to L1 (\u0394=0.30kW)"
+  },
+  {
+    "timestamp": "2025-12-10T21:37:22.852774+00:00",
+    "house_id": "B1",
+    "from_phase": "L2",
+    "to_phase": "L1",
+    "reason": "Consume: move 1.20kW from L2 to L1 (\u0394=2.40kW)"
+  },
+  {
+    "timestamp": "2025-12-10T21:37:27.152919+00:00",
+    "house_id": "V1",
+    "from_phase": "L2",
+    "to_phase": "L3",
+    "reason": "Consume: move 0.40kW from L2 to L3 (\u0394=0.80kW)"
+  },
+  {
+    "timestamp": "2025-12-10T21:41:52.442998+00:00",
+    "house_id": "B1",
+    "from_phase": "L1",
+    "to_phase": "L3",
+    "reason": "Consume: move 0.50kW from L1 to L3 (\u0394=0.60kW)"
+  },
+  {
+    "timestamp": "2025-12-10T21:44:02.945251+00:00",
+    "house_id": "B1",
+    "from_phase": "L3",
+    "to_phase": "L2",
+    "reason": "Consume: move 0.50kW from L3 to L2 (\u0394=0.40kW)"
+  },
+  {
+    "timestamp": "2025-12-10T21:46:23.976361+00:00",
+    "house_id": "B1",
+    "from_phase": "L2",
+    "to_phase": "L3",
+    "reason": "Consume: move 0.50kW from L2 to L3 (\u0394=0.80kW)"
+  },
+  {
+    "timestamp": "2025-12-10T22:59:30.336755+00:00",
+    "house_id": "B1",
+    "from_phase": "L3",
+    "to_phase": "L1",
+    "reason": "Consume: move 0.48kW from L3 to L1 (\u0394=0.52kW)"
+  },
+  {
+    "timestamp": "2025-12-10T22:59:32.502727+00:00",
+    "house_id": "V1",
+    "from_phase": "L3",
+    "to_phase": "L2",
+    "reason": "Consume: move 0.70kW from L3 to L2 (\u0394=1.04kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:00:21.375595+00:00",
+    "house_id": "V2",
+    "from_phase": "L1",
+    "to_phase": "L3",
+    "reason": "Consume: move 0.20kW from L1 to L3 (\u0394=0.07kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:00:34.242185+00:00",
+    "house_id": "V1",
+    "from_phase": "L2",
+    "to_phase": "L1",
+    "reason": "Consume: move 0.46kW from L2 to L1 (\u0394=0.42kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:00:36.391210+00:00",
+    "house_id": "V2",
+    "from_phase": "L3",
+    "to_phase": "L2",
+    "reason": "Consume: move 0.20kW from L3 to L2 (\u0394=0.24kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:10:58.237483+00:00",
+    "house_id": "H1",
+    "from_phase": "L1",
+    "to_phase": "L2",
+    "reason": "Consume: move 0.17kW from L1 to L2 (\u0394=0.34kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:11:00.293026+00:00",
+    "house_id": "H2",
+    "from_phase": "L3",
+    "to_phase": "L2",
+    "reason": "Consume: move 0.17kW from L3 to L2 (\u0394=0.33kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:11:04.381062+00:00",
+    "house_id": "H1",
+    "from_phase": "L2",
+    "to_phase": "L3",
+    "reason": "Consume: move 0.17kW from L2 to L3 (\u0394=0.34kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:11:06.427639+00:00",
+    "house_id": "V2",
+    "from_phase": "L2",
+    "to_phase": "L3",
+    "reason": "Consume: move 0.20kW from L2 to L3 (\u0394=0.40kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:11:13.535503+00:00",
+    "house_id": "H2",
+    "from_phase": "L2",
+    "to_phase": "L3",
+    "reason": "Consume: move 0.17kW from L2 to L3 (\u0394=0.34kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:11:19.673689+00:00",
+    "house_id": "V1",
+    "from_phase": "L1",
+    "to_phase": "L3",
+    "reason": "Consume: move 0.44kW from L1 to L3 (\u0394=0.15kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:11:21.715919+00:00",
+    "house_id": "V2",
+    "from_phase": "L3",
+    "to_phase": "L1",
+    "reason": "Consume: move 0.20kW from L3 to L1 (\u0394=0.08kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:11:29.872581+00:00",
+    "house_id": "V2",
+    "from_phase": "L1",
+    "to_phase": "L3",
+    "reason": "Consume: move 0.20kW from L1 to L3 (\u0394=0.17kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:12:08.569218+00:00",
+    "house_id": "H3",
+    "from_phase": "L2",
+    "to_phase": "L3",
+    "reason": "Consume: move 1.39kW from L2 to L3 (\u0394=0.12kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:12:10.604178+00:00",
+    "house_id": "B2",
+    "from_phase": "L3",
+    "to_phase": "L2",
+    "reason": "Consume: move 0.42kW from L3 to L2 (\u0394=0.74kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:12:12.648775+00:00",
+    "house_id": "V2",
+    "from_phase": "L3",
+    "to_phase": "L2",
+    "reason": "Consume: move 0.20kW from L3 to L2 (\u0394=0.20kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:12:53.264511+00:00",
+    "house_id": "V2",
+    "from_phase": "L2",
+    "to_phase": "L3",
+    "reason": "Consume: move 0.20kW from L2 to L3 (\u0394=0.08kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:15:26.028977+00:00",
+    "house_id": "B1",
+    "from_phase": "L1",
+    "to_phase": "L3",
+    "reason": "Consume: move 1.18kW from L1 to L3 (\u0394=0.06kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:15:28.076695+00:00",
+    "house_id": "V1",
+    "from_phase": "L3",
+    "to_phase": "L1",
+    "reason": "Consume: move 0.40kW from L3 to L1 (\u0394=0.62kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:15:30.144671+00:00",
+    "house_id": "V2",
+    "from_phase": "L3",
+    "to_phase": "L2",
+    "reason": "Consume: move 0.20kW from L3 to L2 (\u0394=0.39kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:17:22.552950+00:00",
+    "house_id": "V1",
+    "from_phase": "L1",
+    "to_phase": "L3",
+    "reason": "Consume: move 0.38kW from L1 to L3 (\u0394=0.17kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:17:24.598372+00:00",
+    "house_id": "B1",
+    "from_phase": "L3",
+    "to_phase": "L1",
+    "reason": "Consume: move 1.06kW from L3 to L1 (\u0394=0.52kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:22:09.692206+00:00",
+    "house_id": "B1",
+    "from_phase": "L1",
+    "to_phase": "L3",
+    "reason": "Consume: move 0.95kW from L1 to L3 (\u0394=0.06kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:22:15.827566+00:00",
+    "house_id": "B1",
+    "from_phase": "L3",
+    "to_phase": "L1",
+    "reason": "Consume: move 0.95kW from L3 to L1 (\u0394=1.56kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:24:18.909742+00:00",
+    "house_id": "V1",
+    "from_phase": "L3",
+    "to_phase": "L2",
+    "reason": "Consume: move 0.36kW from L3 to L2 (\u0394=0.34kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:24:45.424630+00:00",
+    "house_id": "B1",
+    "from_phase": "L1",
+    "to_phase": "L3",
+    "reason": "Consume: move 0.78kW from L1 to L3 (\u0394=0.13kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:24:47.466391+00:00",
+    "house_id": "H2",
+    "from_phase": "L3",
+    "to_phase": "L1",
+    "reason": "Consume: move 0.09kW from L3 to L1 (\u0394=0.18kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:24:51.567684+00:00",
+    "house_id": "B1",
+    "from_phase": "L3",
+    "to_phase": "L1",
+    "reason": "Consume: move 0.78kW from L3 to L1 (\u0394=1.48kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:28:30.754933+00:00",
+    "house_id": "B1",
+    "from_phase": "L1",
+    "to_phase": "L3",
+    "reason": "Consume: move 0.64kW from L1 to L3 (\u0394=0.24kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:28:36.888012+00:00",
+    "house_id": "B1",
+    "from_phase": "L3",
+    "to_phase": "L1",
+    "reason": "Consume: move 0.64kW from L3 to L1 (\u0394=1.20kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:32:05.845558+00:00",
+    "house_id": "H2",
+    "from_phase": "L1",
+    "to_phase": "L3",
+    "reason": "Consume: move 0.32kW from L1 to L3 (\u0394=0.17kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:32:27.094090+00:00",
+    "house_id": "V2",
+    "from_phase": "L2",
+    "to_phase": "L1",
+    "reason": "Consume: move 0.28kW from L2 to L1 (\u0394=0.35kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:35:23.026500+00:00",
+    "house_id": "H1",
+    "from_phase": "L3",
+    "to_phase": "L2",
+    "reason": "Consume: move 0.42kW from L3 to L2 (\u0394=0.27kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:35:25.085826+00:00",
+    "house_id": "H2",
+    "from_phase": "L3",
+    "to_phase": "L1",
+    "reason": "Consume: move 0.43kW from L3 to L1 (\u0394=0.52kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:35:27.129276+00:00",
+    "house_id": "V1",
+    "from_phase": "L2",
+    "to_phase": "L3",
+    "reason": "Consume: move 0.29kW from L2 to L3 (\u0394=0.14kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:35:29.174805+00:00",
+    "house_id": "V2",
+    "from_phase": "L1",
+    "to_phase": "L2",
+    "reason": "Consume: move 0.24kW from L1 to L2 (\u0394=0.19kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:56:23.264511+00:00",
+    "house_id": "B2",
+    "from_phase": "L2",
+    "to_phase": "L3",
+    "reason": "Consume: move 0.50kW from L2 to L3 (\u0394=1.00kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:56:49.588195+00:00",
+    "house_id": "B1",
+    "from_phase": "L1",
+    "to_phase": "L3",
+    "reason": "Consume: move 0.50kW from L1 to L3 (\u0394=0.80kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:57:02.728494+00:00",
+    "house_id": "V1",
+    "from_phase": "L3",
+    "to_phase": "L2",
+    "reason": "Consume: move 0.40kW from L3 to L2 (\u0394=0.40kW)"
+  },
+  {
+    "timestamp": "2025-12-10T23:57:10.922116+00:00",
+    "house_id": "V2",
+    "from_phase": "L2",
+    "to_phase": "L3",
+    "reason": "Consume: move 0.35kW from L2 to L3 (\u0394=0.40kW)"
+  },
+  {
+    "timestamp": "2025-12-11T03:07:56.757016+00:00",
+    "house_id": "B1",
+    "from_phase": "L3",
+    "to_phase": "L1",
+    "reason": "Consume: move 0.50kW from L3 to L1 (\u0394=1.00kW)"
+  },
+  {
+    "timestamp": "2025-12-11T03:08:23.019811+00:00",
+    "house_id": "B1",
+    "from_phase": "L1",
+    "to_phase": "L3",
+    "reason": "Consume: move 0.50kW from L1 to L3 (\u0394=0.80kW)"
+  },
+  {
+    "timestamp": "2025-12-11T08:44:07.371203+00:00",
+    "house_id": "HOUSE_001",
+    "from_phase": "L1",
+    "to_phase": "L2",
+    "reason": "Consume: move 2.00kW from L1 to L2 (\u0394=1.40kW)"
+  },
+  {
+    "timestamp": "2025-12-11T08:44:11.481725+00:00",
+    "house_id": "HOUSE_002",
+    "from_phase": "L1",
+    "to_phase": "L3",
+    "reason": "Consume: move 1.50kW from L1 to L3 (\u0394=2.40kW)"
+  },
+  {
+    "timestamp": "2025-12-11T08:44:13.552645+00:00",
+    "house_id": "HOUSE_004",
+    "from_phase": "L2",
+    "to_phase": "L1",
+    "reason": "Consume: move 0.50kW from L2 to L1 (\u0394=1.00kW)"
+  },
+  {
+    "timestamp": "2025-12-11T08:44:15.618163+00:00",
+    "house_id": "HOUSE_005",
+    "from_phase": "L2",
+    "to_phase": "L1",
+    "reason": "Consume: move 0.60kW from L2 to L1 (\u0394=0.50kW)"
+  },
+  {
+    "timestamp": "2025-12-11T08:44:19.716883+00:00",
+    "house_id": "HOUSE_007",
+    "from_phase": "L3",
+    "to_phase": "L2",
+    "reason": "Consume: move 1.00kW from L3 to L2 (\u0394=0.80kW)"
+  },
+  {
+    "timestamp": "2025-12-11T08:45:17.802974+00:00",
+    "house_id": "HOUSE_007",
+    "from_phase": "L2",
+    "to_phase": "L1",
+    "reason": "Consume: move 1.00kW from L2 to L1 (\u0394=2.30kW)"
+  },
+  {
+    "timestamp": "2025-12-11T08:45:19.875042+00:00",
+    "house_id": "HOUSE_005",
+    "from_phase": "L1",
+    "to_phase": "L2",
+    "reason": "Consume: move 0.60kW from L1 to L2 (\u0394=3.20kW)"
+  },
+  {
+    "timestamp": "2025-12-11T08:45:47.396929+00:00",
+    "house_id": "HOUSE_003",
+    "from_phase": "L1",
+    "to_phase": "L2",
+    "reason": "Consume: move 1.00kW from L1 to L2 (\u0394=1.00kW)"
+  },
+  {
+    "timestamp": "2025-12-11T08:45:49.479060+00:00",
+    "house_id": "HOUSE_007",
+    "from_phase": "L1",
+    "to_phase": "L3",
+    "reason": "Consume: move 1.00kW from L1 to L3 (\u0394=1.90kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:36:40.682073+00:00",
+    "house_id": "HOUSE_009",
+    "from_phase": "L1",
+    "to_phase": "L2",
+    "reason": "Consume: move 1.80kW from L1 to L2 (\u0394=1.30kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:36:42.730518+00:00",
+    "house_id": "HOUSE_008",
+    "from_phase": "L1",
+    "to_phase": "L3",
+    "reason": "Consume: move 2.00kW from L1 to L3 (\u0394=2.60kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:36:44.799319+00:00",
+    "house_id": "HOUSE_004",
+    "from_phase": "L1",
+    "to_phase": "L2",
+    "reason": "Consume: move 0.50kW from L1 to L2 (\u0394=0.80kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:36:46.849496+00:00",
+    "house_id": "HEAVY_04",
+    "from_phase": "L1",
+    "to_phase": "L3",
+    "reason": "Consume: move 2.00kW from L1 to L3 (\u0394=1.10kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:36:48.913537+00:00",
+    "house_id": "HEAVY_05",
+    "from_phase": "L1",
+    "to_phase": "L2",
+    "reason": "Consume: move 1.90kW from L1 to L2 (\u0394=1.40kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:36:53.049534+00:00",
+    "house_id": "HEAVY_07",
+    "from_phase": "L1",
+    "to_phase": "L3",
+    "reason": "Consume: move 1.70kW from L1 to L3 (\u0394=0.80kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:40:05.513831+00:00",
+    "house_id": "HEAVY_01",
+    "from_phase": "L1",
+    "to_phase": "L2",
+    "reason": "Consume: move 2.30kW from L1 to L2 (\u0394=2.20kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:40:07.567418+00:00",
+    "house_id": "HEAVY_02",
+    "from_phase": "L1",
+    "to_phase": "L3",
+    "reason": "Consume: move 2.20kW from L1 to L3 (\u0394=4.10kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:40:09.618042+00:00",
+    "house_id": "HEAVY_04",
+    "from_phase": "L3",
+    "to_phase": "L1",
+    "reason": "Consume: move 2.00kW from L3 to L1 (\u0394=0.20kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:40:11.675198+00:00",
+    "house_id": "HEAVY_05",
+    "from_phase": "L2",
+    "to_phase": "L3",
+    "reason": "Consume: move 1.90kW from L2 to L3 (\u0394=0.20kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:40:13.719350+00:00",
+    "house_id": "HEAVY_06",
+    "from_phase": "L1",
+    "to_phase": "L2",
+    "reason": "Consume: move 1.80kW from L1 to L2 (\u0394=3.60kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:40:24.021430+00:00",
+    "house_id": "LIGHT_03",
+    "from_phase": "L3",
+    "to_phase": "L2",
+    "reason": "Consume: move 0.50kW from L3 to L2 (\u0394=1.00kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:40:26.152761+00:00",
+    "house_id": "LIGHT_04",
+    "from_phase": "L3",
+    "to_phase": "L1",
+    "reason": "Consume: move 0.50kW from L3 to L1 (\u0394=0.20kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:40:34.315377+00:00",
+    "house_id": "MEDIUM_01",
+    "from_phase": "L1",
+    "to_phase": "L2",
+    "reason": "Consume: move 1.20kW from L1 to L2 (\u0394=0.70kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:40:36.390755+00:00",
+    "house_id": "LIGHT_04",
+    "from_phase": "L1",
+    "to_phase": "L3",
+    "reason": "Consume: move 0.50kW from L1 to L3 (\u0394=1.00kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:40:38.485454+00:00",
+    "house_id": "MEDIUM_02",
+    "from_phase": "L1",
+    "to_phase": "L3",
+    "reason": "Consume: move 1.20kW from L1 to L3 (\u0394=1.00kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:40:40.569619+00:00",
+    "house_id": "LIGHT_01",
+    "from_phase": "L2",
+    "to_phase": "L1",
+    "reason": "Consume: move 0.50kW from L2 to L1 (\u0394=0.80kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:40:42.632616+00:00",
+    "house_id": "LIGHT_04",
+    "from_phase": "L3",
+    "to_phase": "L1",
+    "reason": "Consume: move 0.50kW from L3 to L1 (\u0394=0.50kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:40:50.774668+00:00",
+    "house_id": "LIGHT_02",
+    "from_phase": "L2",
+    "to_phase": "L1",
+    "reason": "Consume: move 0.50kW from L2 to L1 (\u0394=0.40kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:40:53.319904+00:00",
+    "house_id": "MEDIUM_05",
+    "from_phase": "L3",
+    "to_phase": "L2",
+    "reason": "Consume: move 1.00kW from L3 to L2 (\u0394=0.20kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:40:55.882806+00:00",
+    "house_id": "LIGHT_01",
+    "from_phase": "L1",
+    "to_phase": "L3",
+    "reason": "Consume: move 0.50kW from L1 to L3 (\u0394=0.80kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:40:58.455106+00:00",
+    "house_id": "LIGHT_02",
+    "from_phase": "L1",
+    "to_phase": "L3",
+    "reason": "Consume: move 0.50kW from L1 to L3 (\u0394=0.90kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:41:07.685230+00:00",
+    "house_id": "MEDIUM_03",
+    "from_phase": "L1",
+    "to_phase": "L2",
+    "reason": "Consume: move 1.20kW from L1 to L2 (\u0394=2.00kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:41:09.763024+00:00",
+    "house_id": "LIGHT_03",
+    "from_phase": "L2",
+    "to_phase": "L3",
+    "reason": "Consume: move 0.50kW from L2 to L3 (\u0394=1.00kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:41:11.879549+00:00",
+    "house_id": "HEAVY_08",
+    "from_phase": "L1",
+    "to_phase": "L3",
+    "reason": "Consume: move 1.50kW from L1 to L3 (\u0394=0.60kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:41:13.936735+00:00",
+    "house_id": "MEDIUM_02",
+    "from_phase": "L3",
+    "to_phase": "L2",
+    "reason": "Consume: move 1.20kW from L3 to L2 (\u0394=1.50kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:41:15.999018+00:00",
+    "house_id": "MEDIUM_01",
+    "from_phase": "L2",
+    "to_phase": "L1",
+    "reason": "Consume: move 1.20kW from L2 to L1 (\u0394=1.70kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:41:22.223459+00:00",
+    "house_id": "MEDIUM_01",
+    "from_phase": "L1",
+    "to_phase": "L3",
+    "reason": "Consume: move 1.20kW from L1 to L3 (\u0394=1.50kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:41:30.373900+00:00",
+    "house_id": "HEAVY_06",
+    "from_phase": "L2",
+    "to_phase": "L1",
+    "reason": "Consume: move 1.80kW from L2 to L1 (\u0394=2.20kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:41:32.450505+00:00",
+    "house_id": "HEAVY_01",
+    "from_phase": "L2",
+    "to_phase": "L3",
+    "reason": "Consume: move 3.50kW from L2 to L3 (\u0394=4.40kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:41:34.545781+00:00",
+    "house_id": "SPIKE_03",
+    "from_phase": "L2",
+    "to_phase": "L1",
+    "reason": "Consume: move 3.80kW from L2 to L1 (\u0394=3.20kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:41:36.609639+00:00",
+    "house_id": "VARIABLE_08",
+    "from_phase": "L2",
+    "to_phase": "L3",
+    "reason": "Consume: move 1.60kW from L2 to L3 (\u0394=2.70kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:41:44.773948+00:00",
+    "house_id": "VARIABLE_04",
+    "from_phase": "L3",
+    "to_phase": "L1",
+    "reason": "Consume: move 0.90kW from L3 to L1 (\u0394=1.00kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:41:46.858628+00:00",
+    "house_id": "LIGHT_04",
+    "from_phase": "L1",
+    "to_phase": "L2",
+    "reason": "Consume: move 0.50kW from L1 to L2 (\u0394=0.60kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:44:34.606083+00:00",
+    "house_id": "HEAVY_01",
+    "from_phase": "L3",
+    "to_phase": "L1",
+    "reason": "Consume: move 2.30kW from L3 to L1 (\u0394=12.20kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:44:40.787818+00:00",
+    "house_id": "HEAVY_01",
+    "from_phase": "L1",
+    "to_phase": "L2",
+    "reason": "Consume: move 2.30kW from L1 to L2 (\u0394=12.60kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:44:44.900095+00:00",
+    "house_id": "HEAVY_06",
+    "from_phase": "L1",
+    "to_phase": "L2",
+    "reason": "Consume: move 1.80kW from L1 to L2 (\u0394=3.60kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:44:49.025570+00:00",
+    "house_id": "HEAVY_07",
+    "from_phase": "L3",
+    "to_phase": "L1",
+    "reason": "Consume: move 1.70kW from L3 to L1 (\u0394=1.50kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:44:51.084882+00:00",
+    "house_id": "HEAVY_08",
+    "from_phase": "L3",
+    "to_phase": "L2",
+    "reason": "Consume: move 1.50kW from L3 to L2 (\u0394=0.80kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:45:05.322428+00:00",
+    "house_id": "LIGHT_01",
+    "from_phase": "L3",
+    "to_phase": "L1",
+    "reason": "Consume: move 0.50kW from L3 to L1 (\u0394=0.80kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:45:07.387405+00:00",
+    "house_id": "LIGHT_04",
+    "from_phase": "L2",
+    "to_phase": "L1",
+    "reason": "Consume: move 0.50kW from L2 to L1 (\u0394=0.50kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:45:09.441700+00:00",
+    "house_id": "MEDIUM_02",
+    "from_phase": "L2",
+    "to_phase": "L3",
+    "reason": "Consume: move 1.20kW from L2 to L3 (\u0394=1.00kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:45:11.506080+00:00",
+    "house_id": "LIGHT_02",
+    "from_phase": "L3",
+    "to_phase": "L1",
+    "reason": "Consume: move 0.50kW from L3 to L1 (\u0394=0.20kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:45:13.576806+00:00",
+    "house_id": "MEDIUM_04",
+    "from_phase": "L2",
+    "to_phase": "L3",
+    "reason": "Consume: move 1.00kW from L2 to L3 (\u0394=1.10kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:45:24.747123+00:00",
+    "house_id": "MEDIUM_05",
+    "from_phase": "L2",
+    "to_phase": "L1",
+    "reason": "Consume: move 1.00kW from L2 to L1 (\u0394=3.70kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:45:27.328562+00:00",
+    "house_id": "LIGHT_03",
+    "from_phase": "L3",
+    "to_phase": "L2",
+    "reason": "Consume: move 0.50kW from L3 to L2 (\u0394=3.70kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:45:29.919695+00:00",
+    "house_id": "LIGHT_01",
+    "from_phase": "L1",
+    "to_phase": "L2",
+    "reason": "Consume: move 0.50kW from L1 to L2 (\u0394=3.60kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:45:32.484138+00:00",
+    "house_id": "LIGHT_02",
+    "from_phase": "L1",
+    "to_phase": "L3",
+    "reason": "Consume: move 0.50kW from L1 to L3 (\u0394=0.90kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:45:41.668253+00:00",
+    "house_id": "MEDIUM_05",
+    "from_phase": "L1",
+    "to_phase": "L2",
+    "reason": "Consume: move 1.00kW from L1 to L2 (\u0394=1.80kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:45:43.777475+00:00",
+    "house_id": "LIGHT_01",
+    "from_phase": "L2",
+    "to_phase": "L3",
+    "reason": "Consume: move 0.50kW from L2 to L3 (\u0394=0.50kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:45:45.923581+00:00",
+    "house_id": "HEAVY_07",
+    "from_phase": "L1",
+    "to_phase": "L2",
+    "reason": "Consume: move 1.70kW from L1 to L2 (\u0394=0.70kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:45:48.038647+00:00",
+    "house_id": "VARIABLE_02",
+    "from_phase": "L2",
+    "to_phase": "L3",
+    "reason": "Consume: move 0.70kW from L2 to L3 (\u0394=0.90kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:45:50.126262+00:00",
+    "house_id": "MEDIUM_05",
+    "from_phase": "L2",
+    "to_phase": "L3",
+    "reason": "Consume: move 1.00kW from L2 to L3 (\u0394=1.20kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:45:52.208886+00:00",
+    "house_id": "VARIABLE_04",
+    "from_phase": "L1",
+    "to_phase": "L2",
+    "reason": "Consume: move 0.90kW from L1 to L2 (\u0394=1.30kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:45:56.345430+00:00",
+    "house_id": "VARIABLE_02",
+    "from_phase": "L3",
+    "to_phase": "L2",
+    "reason": "Consume: move 0.70kW from L3 to L2 (\u0394=1.10kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:46:07.563567+00:00",
+    "house_id": "HEAVY_06",
+    "from_phase": "L2",
+    "to_phase": "L1",
+    "reason": "Consume: move 1.80kW from L2 to L1 (\u0394=12.90kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:46:09.670884+00:00",
+    "house_id": "HEAVY_01",
+    "from_phase": "L2",
+    "to_phase": "L3",
+    "reason": "Consume: move 3.50kW from L2 to L3 (\u0394=12.70kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:46:13.796387+00:00",
+    "house_id": "VARIABLE_05",
+    "from_phase": "L2",
+    "to_phase": "L3",
+    "reason": "Consume: move 1.40kW from L2 to L3 (\u0394=14.70kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:46:24.978572+00:00",
+    "house_id": "MEDIUM_04",
+    "from_phase": "L3",
+    "to_phase": "L1",
+    "reason": "Consume: move 1.00kW from L3 to L1 (\u0394=1.00kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:46:27.077471+00:00",
+    "house_id": "LIGHT_04",
+    "from_phase": "L1",
+    "to_phase": "L2",
+    "reason": "Consume: move 0.50kW from L1 to L2 (\u0394=1.50kW)"
+  },
+  {
+    "timestamp": "2025-12-11T09:46:29.155283+00:00",
+    "house_id": "LIGHT_03",
+    "from_phase": "L2",
+    "to_phase": "L3",
+    "reason": "Consume: move 0.50kW from L2 to L3 (\u0394=1.10kW)"
   }
 ]

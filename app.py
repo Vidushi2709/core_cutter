@@ -2,8 +2,9 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
+from datetime import datetime, timezone
 from main import PhaseBalancingController
-from utility import DataStorage
+from utility import DataStorage, PhaseTelemetry
 
 # Pydantic models
 class TelemetryData(BaseModel):
@@ -21,6 +22,13 @@ class TelemetryData(BaseModel):
     current: float
     power_kw: float
     phase: str
+
+
+class PhaseTelemetryData(BaseModel):
+    """Phase-level power totals from edge node."""
+    L1_kw: float
+    L2_kw: float
+    L3_kw: float
 
 
 # Response models for real-time analytics website
@@ -65,32 +73,81 @@ class SwitchEvent(BaseModel):
 app = FastAPI(title="Phase Balancing Controller - Real-time Analytics", version="2.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5500",
-        "http://127.0.0.1:5500",
-        "http://localhost:3000",
-        "null"
-    ],
+    allow_origins=["*"],  # In production, specify exact origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 controller = PhaseBalancingController(DataStorage())
+storage = controller.storage  # For phase telemetry endpoint
+
+@app.post("/telemetry/phases")
+def submit_phase_telemetry(data: PhaseTelemetryData):
+    """
+    Receive phase-level totals directly from edge node.
+    
+    This endpoint accepts aggregated phase powers instead of individual house data.
+    The system will prioritize these totals over house summation for balancing decisions.
+    
+    Example payload:
+    {
+        "L1_kw": 4.20,
+        "L2_kw": 2.15,
+        "L3_kw": 3.40
+    }
+    """
+    telemetry = PhaseTelemetry(
+        timestamp=datetime.now(timezone.utc),
+        L1_kw=data.L1_kw,
+        L2_kw=data.L2_kw,
+        L3_kw=data.L3_kw
+    )
+    
+    storage.save_phase_telemetry(telemetry)
+    
+    # Calculate imbalance
+    powers = [data.L1_kw, data.L2_kw, data.L3_kw]
+    imbalance = max(powers) - min(powers)
+    
+    return {
+        "status": "success",
+        "timestamp": telemetry.timestamp.isoformat(),
+        "phases": {
+            "L1_kw": data.L1_kw,
+            "L2_kw": data.L2_kw,
+            "L3_kw": data.L3_kw
+        },
+        "imbalance_kw": round(imbalance, 3),
+        "source": "phase_node"
+    }
 
 @app.post("/telemetry")
 def telemetry(data: TelemetryData):
+    """
+    Receives data from ESP32 and returns the Correct Phase for THAT house.
+    
+    The Fix: Instead of looking at the 'recommendation' (which might be for a different house),
+    we look at what the registry says THIS house should be doing.
+    """
     try:
         house_id = data.house_id
 
+        # 1) Ensure house exists. If not, auto-register it with the reported phase.
         if house_id not in controller.registry.houses:
             controller.registry.add_house(house_id, data.phase)
 
+        # 2) Update latest reading for this house (uses datetime.now(timezone.utc) internally)
         controller.registry.update_reading(house_id, data.voltage, data.current, data.power_kw)
 
+        # 3. Run the Logic Engine (updates the database if switches are needed)
         controller.run_cycle()
 
+        # 4. CHECK THE DATABASE (The Fix)
+        # Instead of looking at the 'recommendation' (which might be for a different house),
+        # we look at what the registry says THIS house should be doing.
         current_assigned_phase = controller.registry.houses[house_id].phase
 
+        # 5. Send the instruction back to ESP32
         return {
             "status": "success",
             "house_id": house_id,
@@ -101,6 +158,11 @@ def telemetry(data: TelemetryData):
 
 @app.get("/analytics/status")
 def get_system_status() -> SystemStatus:
+    """
+    Real-time system status for dashboard.
+    
+    Returns: voltage, current, power for each house; phase analytics; mode; imbalance; issues.
+    """
     try:
         from datetime import datetime, timezone
         
@@ -111,8 +173,10 @@ def get_system_status() -> SystemStatus:
         phase_issues = controller.analyzer.detect_voltage_issues(phase_stats)
         power_issues = controller.analyzer.detect_power_issues(phase_stats)
         
+        # Build per-phase analytics with houses
         phases_data = []
         for ps in phase_stats:
+            # Get all houses on this phase
             houses_on_phase = []
             for house_id, house in controller.registry.houses.items():
                 if house.phase == ps.phase and house.last_reading:
@@ -149,6 +213,11 @@ def get_system_status() -> SystemStatus:
 
 @app.get("/analytics/houses")
 def get_all_houses() -> list[HouseReading]:
+    """
+    Get current readings for all houses.
+    
+    Returns: house_id, phase, voltage, current, power_kw, mode for each house.
+    """
     try:
         houses_list = []
         for house_id, house in controller.registry.houses.items():
@@ -164,6 +233,7 @@ def get_all_houses() -> list[HouseReading]:
                     mode_reading="EXPORT" if reading.current < 0 else "CONSUME"
                 ))
         
+        # Sort by house_id for consistency
         houses_list.sort(key=lambda h: h.house_id)
         return houses_list
     except Exception as e:
@@ -172,6 +242,11 @@ def get_all_houses() -> list[HouseReading]:
 
 @app.get("/analytics/house/{house_id}")
 def get_house_details(house_id: str) -> HouseReading:
+    """
+    Get current reading for a specific house.
+    
+    Returns: voltage, current, power_kw, phase, and mode for the house.
+    """
     try:
         if house_id not in controller.registry.houses:
             raise HTTPException(status_code=404, detail=f"House {house_id} not found")
@@ -198,6 +273,11 @@ def get_house_details(house_id: str) -> HouseReading:
 
 @app.get("/analytics/switches")
 def get_switch_history(limit: int = 50) -> dict:
+    """
+    Get recent phase switch events for timeline/history view.
+    
+    Returns: list of switch events with timestamps, house_id, from_phase, to_phase, reason.
+    """
     try:
         history = controller.storage.get_switch_history(limit)
         switches = [
@@ -220,6 +300,11 @@ def get_switch_history(limit: int = 50) -> dict:
 
 @app.get("/analytics/phase/{phase}")
 def get_phase_details(phase: str) -> PhaseAnalytics:
+    """
+    Get detailed analytics for a specific phase.
+    
+    Returns: phase power, voltage, house count, and all houses on that phase.
+    """
     try:
         phase_stats = controller.analyzer.get_phase_stats()
         phase_data = next((ps for ps in phase_stats if ps.phase == phase), None)
@@ -227,6 +312,7 @@ def get_phase_details(phase: str) -> PhaseAnalytics:
         if not phase_data:
             raise HTTPException(status_code=404, detail=f"Phase {phase} not found")
         
+        # Get all houses on this phase
         houses_on_phase = []
         for house_id, house in controller.registry.houses.items():
             if house.phase == phase and house.last_reading:
@@ -255,6 +341,7 @@ def get_phase_details(phase: str) -> PhaseAnalytics:
 
 @app.get("/health")
 def health_check():
+    """Health check endpoint - verifies controller is operational"""
     try:
         from datetime import datetime, timezone
         _ = controller.registry.houses

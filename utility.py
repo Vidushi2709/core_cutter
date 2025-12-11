@@ -24,11 +24,13 @@ from configerations import (
     DATA_DIR,
     HOUSES_DB,
     TELEMETRY_DB,
+    PHASE_TELEMETRY_DB,
+    PHASE_TELEMETRY_EXPIRY_SECONDS,
+    USE_PHASE_NODE_PRIORITY,
     HISTORY_DB,
     HIGH_EXPORT_THRESHOLD,
     HIGH_IMPORT_THRESHOLD,
     PHASE_OVERLOAD_THRESHOLD,
-    EWMA_ALPHA,
     RESET_STATE_ON_START,
     RESET_TELEMETRY_ON_START,
     RESET_HOUSES_ON_START,
@@ -48,7 +50,7 @@ class ReadingOfEachHouse:
             "voltage": self.voltage,
             "current": self.current,
             "power_kw": self.power_kw,
-        } # to serialize reading data and store it in json format
+        }
     
     @classmethod
     def from_dict(cls, data: Dict) -> 'ReadingOfEachHouse':
@@ -62,7 +64,7 @@ class ReadingOfEachHouse:
             voltage=data["voltage"],
             current=data.get("current", 0.0),
             power_kw=data["power_kw"],
-        ) # to deserialize reading data from json format back to ReadingOfEachHouse object
+        )
 
 @dataclass
 class HouseState:
@@ -71,7 +73,6 @@ class HouseState:
     phase: str
     last_changed: datetime
     last_reading: Optional[ReadingOfEachHouse]
-    smoothed_power_kw: Optional[float] = None
 
     def to_dict(self) -> Dict:
         return {
@@ -79,7 +80,6 @@ class HouseState:
             "phase": self.phase,
             "last_changed": self.last_changed.isoformat(),
             "last_reading": self.last_reading.to_dict() if self.last_reading else None,
-            "smoothed_power_kw": self.smoothed_power_kw,
         }
     @classmethod
     def from_dict(cls, data: Dict) -> 'HouseState':
@@ -92,13 +92,11 @@ class HouseState:
             phase=data["phase"],
             last_changed=lc,
             last_reading=ReadingOfEachHouse.from_dict(data["last_reading"]) if data["last_reading"] else None,
-            smoothed_power_kw=data.get("smoothed_power_kw"),
         )
     
 # Store data locally
 class DataStorage:
     def __init__(self):
-        # ensure directory exists
         if isinstance(DATA_DIR, str):
             Path(DATA_DIR).mkdir(parents=True, exist_ok=True)
         else:
@@ -132,7 +130,6 @@ class DataStorage:
         path = Path(TELEMETRY_DB)
         data = self._load_json(path, default=[])
 
-        # Append new reading - NEVER remove old entries (preserves full history)
         data.append({
             "house_id": house_id,
             "phase": phase,
@@ -145,58 +142,77 @@ class DataStorage:
         self._write_json(path, data)
 
     def clear_telemetry(self):
-        """Truncate telemetry history (used when resetting on startup)."""
         path = Path(TELEMETRY_DB)
         self._write_json(path, [])
 
     def clear_switch_history(self):
-        """Truncate switch history log (used when resetting on startup)."""
         path = Path(HISTORY_DB)
         self._write_json(path, [])
         
     def append_switch_history(self, switch_record: Dict):
         path = Path(HISTORY_DB)
         data = self._load_json(path, default=[])
-        # Append new record
         data.append(switch_record)
-        # Save back as properly formatted JSON array
         self._write_json(path, data)
-    
-    def get_recent_telemetry(self, house_id: str, hours: int = 24) -> List[ReadingOfEachHouse]:
-        path = Path(TELEMETRY_DB)
-        data = self._load_json(path, default=[])
-
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
-        result = []
-
-        for entry in data:
-            if entry["house_id"] != house_id:
-                continue
-
-            ts = datetime.fromisoformat(entry["timestamp"])
-            # Ensure UTC-aware datetime; if naive, assume UTC
-            if ts.tzinfo is None:
-                ts = ts.replace(tzinfo=timezone.utc)
-            if ts >= cutoff:
-                result.append(
-                    ReadingOfEachHouse(
-                        timestamp=ts,
-                        voltage=entry["voltage"],
-                        current = entry.get("current", 0.0),
-                        power_kw=entry["power_kw"]
-                    )
-                )
-
-        return result
 
     def get_switch_history(self, limit: int = 24) -> List[Dict]:
         path = Path(HISTORY_DB)
         records = self._load_json(path, default=[])
         if not isinstance(records, list):
             return []
-        # Return most recent `limit` entries in reverse order (newest first)
         recent = records[-limit:] if len(records) > limit else records
         return list(reversed(recent))
+    
+    def save_phase_telemetry(self, telemetry: 'PhaseTelemetry'):
+        """Save latest phase telemetry from edge node."""
+        path = Path(PHASE_TELEMETRY_DB)
+        self._write_json(path, telemetry.to_dict())
+    
+    def load_phase_telemetry(self) -> Optional['PhaseTelemetry']:
+        """Load latest phase telemetry if not expired."""
+        path = Path(PHASE_TELEMETRY_DB)
+        data = self._load_json(path, default=None)
+        if not data:
+            return None
+        
+        try:
+            telemetry = PhaseTelemetry.from_dict(data)
+            now = datetime.now(timezone.utc)
+            age_seconds = (now - telemetry.timestamp).total_seconds()
+            if age_seconds > PHASE_TELEMETRY_EXPIRY_SECONDS:
+                return None  # Expired
+            return telemetry
+        except Exception as e:
+            print(f"Warning: Failed to load phase telemetry: {e}")
+            return None
+
+@dataclass
+class PhaseTelemetry:
+    """Direct phase-level power readings from edge node."""
+    timestamp: datetime
+    L1_kw: float
+    L2_kw: float
+    L3_kw: float
+    
+    def to_dict(self) -> Dict:
+        return {
+            "timestamp": self.timestamp.isoformat(),
+            "L1_kw": self.L1_kw,
+            "L2_kw": self.L2_kw,
+            "L3_kw": self.L3_kw,
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict) -> 'PhaseTelemetry':
+        ts = datetime.fromisoformat(data["timestamp"])
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        return cls(
+            timestamp=ts,
+            L1_kw=data["L1_kw"],
+            L2_kw=data["L2_kw"],
+            L3_kw=data["L3_kw"],
+        )
 
 @dataclass
 class PhaseStats:
@@ -205,6 +221,7 @@ class PhaseStats:
     total_power_kw: float
     house_count: int
     avg_voltage: float
+    source: str = "house_summation"  # 'house_summation' or 'phase_node'
 
 
 @dataclass
@@ -220,35 +237,17 @@ class RecommendedSwitch:
 # all houses and their current phase
 class HouseRegistry:
     def __init__(self, storage: DataStorage):
-        """
-        Registry of all houses and their current state.
-
-        On startup we load any previously-saved houses from disk so that
-        registrations and last readings survive a process restart.
-        """
         self.storage = storage
-        # Load from persistent storage if available, otherwise start empty.
         self.houses: Dict[str, HouseState] = (
             self.storage.load_houses() if self.storage else {}
         )
-        # On startup: clear readings/smoothed power but keep house registrations and phase assignments.
-        # This ensures houses remember which phase they're on, but balancing starts fresh.
         if self.storage and RESET_STATE_ON_START:
             self._reset_state_on_start()
         elif self.storage and RESET_HOUSES_ON_START:
             self._reset_houses_on_start()
-        # Recover latest readings from telemetry log to restore in-memory state
-        # ONLY if we're NOT resetting state (prevents stale EWMA values)
         elif self.storage and not (RESET_STATE_ON_START or RESET_HOUSES_ON_START):
             self._recover_latest_readings_from_telemetry()
 
-    @staticmethod
-    def _ewma(previous: Optional[float], new_value: float) -> float:
-        """Compute EWMA for smoothing house power readings."""
-        if previous is None:
-            return new_value
-        return EWMA_ALPHA * new_value + (1 - EWMA_ALPHA) * previous
-        
     def add_house(self, house_id: str, initial_phase: str):
         # initialize last_changed far in the past so newly-registered houses
         # are immediately eligible for switching unless explicitly set otherwise
@@ -266,12 +265,10 @@ class HouseRegistry:
     def _reset_state_on_start(self):
         """Clear cached readings and optionally telemetry when resetting on startup.
         
-        This ensures a fresh start for balancing logic, preventing stale EWMA values
-        from affecting switch decisions.
+        This ensures a fresh start for balancing logic.
         """
         for house in self.houses.values():
             house.last_reading = None
-            house.smoothed_power_kw = None  # CRITICAL: Clear smoothed power to prevent stale EWMA
         if self.storage:
             self.storage.save_houses(self.houses)
             if RESET_TELEMETRY_ON_START:
@@ -311,13 +308,11 @@ class HouseRegistry:
         latest_per_house = {}  # house_id -> (timestamp, reading)
         
         try:
-            # Load entire JSON array
             telemetry_data = self.storage._load_json(telemetry_path, default=[])
             if not isinstance(telemetry_data, list):
                 print(f"Warning: Telemetry data is not a list, skipping recovery")
                 return
             
-            # Find latest reading per house
             for entry in telemetry_data:
                 try:
                     house_id = entry.get("house_id")
@@ -328,13 +323,11 @@ class HouseRegistry:
                     if ts.tzinfo is None:
                         ts = ts.replace(tzinfo=timezone.utc)
                     
-                    # Skip expired readings during recovery
                     now = datetime.now(timezone.utc)
                     if READING_EXPIRY_SECONDS > 0:
                         if (now - ts).total_seconds() > READING_EXPIRY_SECONDS:
                             continue
                     
-                    # Keep only if this is newer than what we have
                     if house_id not in latest_per_house or ts > latest_per_house[house_id][0]:
                         reading = ReadingOfEachHouse(
                             timestamp=ts,
@@ -349,16 +342,10 @@ class HouseRegistry:
             print(f"Warning: Failed to recover telemetry on startup: {e}")
             return
         
-        # Restore readings to in-memory state
         for house_id, (_, reading) in latest_per_house.items():
             if house_id in self.houses:
                 self.houses[house_id].last_reading = reading
-                # Initialize smoothed power with the recovered reading (FRESH START)
-                self.houses[house_id].smoothed_power_kw = reading.power_kw
     
-    # Note: `power_kw` sign convention used across the codebase:
-    #  - positive => consumption/import
-    #  - negative => generation/export
     def update_reading(self, house_id: str, voltage: float, current: float, power_kw: float):
         if house_id not in self.houses:
             raise ValueError(f"Unknown house: {house_id}")
@@ -370,15 +357,8 @@ class HouseRegistry:
             power_kw=power_kw
         )
         
-        # Update in-memory state
         self.houses[house_id].last_reading = reading
-        self.houses[house_id].smoothed_power_kw = self._ewma(
-            self.houses[house_id].smoothed_power_kw,
-            power_kw
-        )
         
-        # Persist both to the telemetry log and to the houses DB so that the
-        # latest reading is reloaded after a restart.
         if self.storage:
             self.storage.append_telemetry(house_id, reading, self.houses[house_id].phase)
             self.storage.save_houses(self.houses)
@@ -391,9 +371,6 @@ class HouseRegistry:
         self.houses[house_id].phase = new_phase
         self.houses[house_id].last_changed = datetime.now(timezone.utc)
 
-        # Persist the updated house state and log the switch, if storage
-        # is configured. Any logging error is swallowed so it doesn't
-        # break the main flow.
         if self.storage:
             self.storage.save_houses(self.houses)
 
@@ -407,31 +384,77 @@ class HouseRegistry:
             try:
                 self.storage.append_switch_history(switch_record)
             except Exception as exc:
-                # Best-effort logging only, but surface a warning for diagnostics.
                 print(f"Warning: failed to append switch history for {house_id}: {exc}")
 
-''' Analytics on phases and houses 
-1) what is the current state of each phase
-2) recommend switches to balance phases'''
 class PhaseRegistry:
     def __init__(self, registry: HouseRegistry, storage: DataStorage):
         self.registry = registry
         self.storage = storage
+        self.use_phase_node = USE_PHASE_NODE_PRIORITY
 
     def _effective_power_kw(self, house: HouseState, now: datetime) -> Optional[float]:
-        """Return smoothed power if available, respecting reading expiry."""
+        """Return house power from last reading, respecting reading expiry."""
         reading = house.last_reading
         if reading is None:
             return None
         if READING_EXPIRY_SECONDS > 0:
             if (now - reading.timestamp).total_seconds() > READING_EXPIRY_SECONDS:
                 return None
-        if house.smoothed_power_kw is not None:
-            return house.smoothed_power_kw
         return reading.power_kw
-
     def get_phase_stats(self) -> List[PhaseStats]:
-        """Current stats for all phases."""
+        """Current stats for all phases.
+        
+        Priority:
+        1. Use phase node telemetry if available and not expired
+        2. Fall back to house summation if phase node unavailable
+        """
+        # Try to load phase node telemetry first
+        if self.use_phase_node and self.storage:
+            phase_telemetry = self.storage.load_phase_telemetry()
+            if phase_telemetry:
+                return self._get_stats_from_phase_node(phase_telemetry)
+        
+        # Fall back to house summation
+        return self._get_stats_from_houses()
+    
+    def _get_stats_from_phase_node(self, telemetry: PhaseTelemetry) -> List[PhaseStats]:
+        """Build phase stats directly from edge node telemetry."""
+        # Still get house count and voltage from house data for dashboard
+        house_stats = {p: {"voltages": [], "count": 0} for p in PHASES}
+        now = datetime.now(timezone.utc)
+        
+        for house in self.registry.houses.values():
+            r = house.last_reading
+            if r is None:
+                continue
+            if READING_EXPIRY_SECONDS > 0:
+                if (now - r.timestamp).total_seconds() > READING_EXPIRY_SECONDS:
+                    continue
+            
+            phase = house.phase
+            house_stats[phase]["voltages"].append(r.voltage)
+            house_stats[phase]["count"] += 1
+        
+        # Use phase node power values
+        phase_powers = {"L1": telemetry.L1_kw, "L2": telemetry.L2_kw, "L3": telemetry.L3_kw}
+        
+        return [
+            PhaseStats(
+                phase=p,
+                total_power_kw=phase_powers[p],
+                house_count=house_stats[p]["count"],
+                avg_voltage=(
+                    sum(house_stats[p]["voltages"]) / len(house_stats[p]["voltages"])
+                    if house_stats[p]["voltages"]
+                    else 0.0
+                ),
+                source="phase_node"
+            )
+            for p in PHASES
+        ]
+    
+    def _get_stats_from_houses(self) -> List[PhaseStats]:
+        """Build phase stats by summing individual house readings (fallback)."""
         stats = {p: {"power": 0.0, "voltages": [], "count": 0} for p in PHASES}
         now = datetime.now(timezone.utc)
 
@@ -442,8 +465,6 @@ class PhaseRegistry:
                 continue
 
             phase = house.phase
-            # accumulate signed power: negative reduces phase total (export),
-            # positive increases it (consumption).
             stats[phase]["power"] += effective_power
             stats[phase]["voltages"].append(r.voltage)
             stats[phase]["count"] += 1
@@ -458,13 +479,12 @@ class PhaseRegistry:
                     if stats[p]["voltages"]
                     else 0.0
                 ),
+                source="house_summation"
             )
             for p in PHASES
         ]
 
     def get_imbalance(self, phase_stat: List[PhaseStats]) -> float:
-        # Imbalance is defined as difference between the most-consuming
-        # phase and the most-generating phase.
         powers = [ps.total_power_kw for ps in phase_stat]
         return max(powers) - min(powers)
     
@@ -491,11 +511,10 @@ class PhaseRegistry:
             if effective_power is None:
                 continue
 
-            # Accumulate export and import separately
             if effective_power < 0:
-                export_power += abs(effective_power)  # Magnitude of export
+                export_power += abs(effective_power)
             else:
-                import_power += effective_power  # Magnitude of import
+                import_power += effective_power
         
         # Internal imbalance = how much conflict exists
         internal_imbalance = abs(export_power - import_power)
@@ -520,7 +539,6 @@ class PhaseRegistry:
             if internal['has_conflict']:
                 conflicted.append((phase, internal['internal_imbalance']))
         
-        # Sort by imbalance (highest first)
         conflicted.sort(key=lambda x: x[1], reverse=True)
         return [phase for phase, _ in conflicted]
     
@@ -552,8 +570,6 @@ class PhaseRegistry:
         return issues
 
     def detect_mode(self, phase_stat: List[PhaseStats]) -> str:
-        # Mode is derived from the sign of power (smoothed when available).
-        # Negative power means export, positive means consume.
         now = datetime.now(timezone.utc)
         export_power = 0.0
         import_power = 0.0
@@ -564,9 +580,9 @@ class PhaseRegistry:
                 continue
 
             if effective_power < 0:
-                export_power += abs(effective_power)  # accumulate magnitude of exports
+                export_power += abs(effective_power)
             else:
-                import_power += effective_power  # accumulate magnitude of imports
+                import_power += effective_power
 
         if export_power > CURRENT_MODE_THRESHOLD and export_power >= import_power:
             return "EXPORT"
@@ -581,20 +597,15 @@ class PhaseRegistry:
         }
         
         for ps in phase_stat:
-            # Only check voltage if phase has houses (avg_voltage > 0 means houses present)
             if ps.avg_voltage > 0:
-                # Voltage-based issues
                 if ps.avg_voltage > OVERVOLTAGE_THRESHOLD:
                     issues["OVER_VOLTAGE"].append(ps.phase)
                 elif ps.avg_voltage < UNDERVOLTAGE_THRESHOLD:
                     issues["UNDER_VOLTAGE"].append(ps.phase)
             
-            # Power-based issues
-            # Positive power = consumption/import (overload)
             if ps.total_power_kw > PHASE_OVERLOAD_THRESHOLD:
                 issues["OVERLOAD"].append(ps.phase)
             
-            # Negative power = export/generation (excessive export)
             if ps.total_power_kw < -PHASE_OVERLOAD_THRESHOLD:
                 issues["EXCESSIVE_EXPORT"].append(ps.phase)
         

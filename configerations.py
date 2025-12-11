@@ -41,4 +41,9 @@ RESET_SWITCH_HISTORY_ON_START = False # If True, clear switch history on startup
 DATA_DIR = Path("./data")
 HOUSES_DB = DATA_DIR / "houses.json"
 TELEMETRY_DB = DATA_DIR / "telemetry.json"
+PHASE_TELEMETRY_DB = DATA_DIR / "phase_telemetry.json"  # Phase-level totals from edge node
 HISTORY_DB = DATA_DIR / "switch_history.json"
+
+# Phase telemetry settings
+PHASE_TELEMETRY_EXPIRY_SECONDS = 10  # Phase totals expire after 10 seconds (fall back to house summation)
+USE_PHASE_NODE_PRIORITY = True       # If True, prefer phase node telemetry over house summation
