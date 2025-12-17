@@ -1,4 +1,32 @@
-fastapi==0.104.1
-uvicorn==0.24.0
-pydantic==2.5.0
-python-dateutil==2.8.2
+# Core Backend Dependencies
+fastapi==0.123.0
+uvicorn==0.38.0
+pydantic==2.12.5
+python-dateutil==2.9.0.post0
+python-dotenv==1.2.1
+
+# Alert System Dependencies
+requests>=2.32.5         # For webhook alerts
+twilio>=9.8.8           # For SMS alerts
+
+# Machine Learning Dependencies
+xgboost>=3.1.2          # Primary ML model (XGBoost classifier)
+scikit-learn>=1.8.0     # ML utilities, cross-validation, metrics
+pandas>=2.3.3           # Data manipulation and CSV handling
+numpy>=2.3.5            # Numerical computing
+lightgbm>=4.6.0         # Alternative gradient boosting model
+catboost>=1.2.8         # Alternative gradient boosting model
+
+# Data Visualization (for model analysis)
+matplotlib>=3.10.8      # Plotting and visualization
+seaborn>=0.13.2         # Statistical visualization
+
+# Jupyter Notebook Support (for model.ipynb)
+jupyter>=1.1.1          # Jupyter environment
+ipykernel>=7.1.0        # Jupyter kernel
+notebook>=7.4.7         # Notebook interface
+jupyterlab>=4.4.10      # JupyterLab interface
+
+# Additional Utilities
+PyJWT>=2.10.1           # JWT token handling
+colorama>=0.4.6         # Colored terminal output

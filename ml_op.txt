@@ -1,0 +1,38 @@
+DECISION: SWITCH PHASE
+Prediction: switch
+Confidence: 75.10%
+
+ Reasoning: Imbalance of 3.00 kW detected.
+   Phase switching recommended to balance the load.
+
+======================================================================
+TEST: Low Load Balanced
+======================================================================
+Phase Powers: L1=0.80 kW, L2=0.90 kW, L3=0.85 kW
+Imbalance: 0.10 kW
+
+ DECISION: NO SWITCHING NEEDED
+Prediction: not_switch
+Confidence: 88.30%
+
+ Reasoning: System is balanced with only 0.10 kW imbalance.
+   No switching needed.
+
+======================================================================
+TEST: One Phase Very High
+======================================================================
+Phase Powers: L1=1.00 kW, L2=6.50 kW, L3=2.00 kW
+====================
+NO SWITCH       | Balanced System           | Imbalance:  0.20 kW | Confidence: 79.43%
+NO SWITCH       | Light Imbalance           | Imbalance:  0.30 kW | Confidence: 57.27%
+SWITCH          | Moderate Imbalance        | Imbalance:  2.50 kW | Confidence: 81.50%
+SWITCH          | Critical Imbalance        | Imbalance:  5.40 kW | Confidence: 87.90%
+SWITCH          | Export Balanced           | Imbalance:  0.20 kW | Confidence: 99.61%
+SWITCH          | Export Imbalanced         | Imbalance:  3.30 kW | Confidence: 99.61%
+NO SWITCH       | High Load Balanced        | Imbalance:  0.20 kW | Confidence: 91.61%
+SWITCH          | High Load Imbalanced      | Imbalance:  3.00 kW | Confidence: 75.10%
+NO SWITCH       | Low Load Balanced         | Imbalance:  0.10 kW | Confidence: 88.30%
+SWITCH          | One Phase Very High       | Imbalance:  5.50 kW | Confidence: 86.59%
+
+✅ Testing complete!
+PS C:\Users\DELL\Desktop\core_cutter>
